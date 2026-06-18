@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="备忘录">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1e1e2f">
+<title>备忘录</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg:#f0f2f5; --card:#fff; --text:#333; --sub:#999;
+  --primary:#5b6cf0; --danger:#e05555; --sidebar-bg:#1e1e2f;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body {
+  font-family: -apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;
+  background:var(--bg); height:100vh; overflow:hidden;
+  display:flex; flex-direction:column;
+  -webkit-tap-highlight-color: transparent;
+  user-select:none; -webkit-user-select:none;
+}
+
+/* ── 顶部栏 ── */
+.topbar {
+  background:var(--sidebar-bg); color:#e8e8f0; padding:12px 16px;
+  display:flex; align-items:center; gap:12px; flex-shrink:0;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+}
+.topbar .menu-btn {
+  background:none; border:none; color:#e8e8f0; font-size:22px;
+  cursor:pointer; width:40px; height:40px; display:flex;
+  align-items:center; justify-content:center; border-radius:8px;
+}
+.topbar .menu-btn:active { background:rgba(255,255,255,.1); }
+.topbar h1 { flex:1; font-size:17px; font-weight:600; }
+.topbar .top-actions { display:flex; gap:4px; }
+.topbar .top-actions button {
+  background:rgba(255,255,255,.1); border:none; color:#e8e8f0;
+  padding:8px 14px; border-radius:8px; font-size:13px; cursor:pointer;
+}
+.topbar .top-actions button:active { background:rgba(255,255,255,.2); }
+
+/* ── 抽屉遮罩 ── */
+.drawer-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:100;
+  opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.drawer-overlay.open { opacity:1; pointer-events:auto; }
+
+/* ── 目录抽屉 ── */
+.drawer {
+  position:fixed; left:0; top:0; bottom:0; width:300px; max-width:85vw;
+  background:var(--sidebar-bg); z-index:200; display:flex; flex-direction:column;
+  transform:translateX(-100%); transition:transform .25s cubic-bezier(.4,0,.2,1);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.drawer.open { transform:translateX(0); }
+.drawer-header {
+  padding:16px; display:flex; align-items:center; gap:8px;
+  border-bottom:1px solid #2a2a3d; flex-shrink:0;
+}
+.drawer-header span { flex:1; font-size:16px; font-weight:600; color:#e8e8f0; }
+.drawer-header button {
+  background:#5b6cf0; border:none; color:#fff; width:36px; height:36px;
+  border-radius:50%; font-size:20px; cursor:pointer; display:flex;
+  align-items:center; justify-content:center;
+}
+.drawer-header button:active { background:#4a5cd8; }
+
+.drawer-tree { flex:1; overflow-y:auto; padding:4px 0;
+  -webkit-overflow-scrolling:touch; }
+.drawer-footer {
+  padding:12px 16px; border-top:1px solid #2a2a3d; flex-shrink:0;
+  padding-bottom: calc(12px + var(--safe-bottom));
+}
+.drawer-footer button {
+  width:100%; padding:12px; background:rgba(255,255,255,.06);
+  border:1px dashed #555; border-radius:10px; color:#aaa;
+  font-size:14px; cursor:pointer;
+}
+.drawer-footer button:active { background:rgba(255,255,255,.12); }
+
+/* 树节点 */
+.tree-item { }
+.tree-row {
+  display:flex; align-items:center; padding:10px 14px; cursor:pointer;
+  gap:6px; color:#c0c0d0; font-size:15px; transition:background .1s;
+  min-height:48px; /* 触控友好 */
+}
+.tree-row:active { background:#2a2a3d; }
+.tree-row.active { background:#3a3a55; color:#fff; font-weight:600; }
+.tree-row .arrow {
+  width:22px; font-size:11px; text-align:center; flex-shrink:0;
+  color:#888; transition:transform .15s; padding:4px 0;
+}
+.tree-row .arrow.expanded { transform:rotate(90deg); }
+.tree-row .icon { font-size:18px; flex-shrink:0; }
+.tree-row .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tree-row .badge {
+  font-size:11px; color:#888; background:rgba(255,255,255,.06);
+  padding:2px 7px; border-radius:10px; min-width:22px; text-align:center;
+}
+.tree-row .row-actions { display:flex; gap:2px; flex-shrink:0; }
+.tree-row .row-actions button {
+  background:none; border:none; color:#888; font-size:14px;
+  width:32px; height:32px; border-radius:6px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.tree-row .row-actions button:active { background:#444; color:#fff; }
+.children { display:none; }
+.children.open { display:block; }
+
+/* ── 主内容区 ── */
+.main { flex:1; display:flex; flex-direction:column; min-height:0; }
+.main-nav {
+  background:var(--card); padding:10px 16px; border-bottom:1px solid #e8e8e8;
+  display:flex; align-items:center; gap:8px; flex-shrink:0;
+}
+.main-nav .breadcrumb { font-size:13px; color:var(--sub); flex:1;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.main-nav .nav-add {
+  background:var(--primary); border:none; color:#fff;
+  padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600;
+  cursor:pointer; white-space:nowrap; flex-shrink:0;
+}
+.main-nav .nav-add:active { opacity:.8; }
+
+.memo-scroll { flex:1; overflow-y:auto; padding:8px 12px;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom: calc(80px + var(--safe-bottom)); }
+
+.memo-card {
+  background:var(--card); border-radius:12px; padding:14px;
+  margin-bottom:8px; display:flex; align-items:center; gap:12px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04); transition:box-shadow .15s;
+}
+.memo-card:active { box-shadow:0 2px 8px rgba(0,0,0,.1); }
+
+.memo-card input[type="checkbox"] {
+  width:22px; height:22px; accent-color:var(--primary); cursor:pointer; flex-shrink:0;
+}
+.memo-card .memo-body { flex:1; min-width:0; }
+.memo-card .memo-text {
+  width:100%; border:none; outline:none; font-size:15px; padding:2px 0;
+  background:transparent; color:var(--text); resize:none;
+}
+.memo-card .memo-text.done { text-decoration:line-through; color:#bbb; }
+.memo-card .memo-time { font-size:11px; color:#ccc; margin-top:2px; }
+.memo-card .memo-del {
+  background:none; border:none; color:#ddd; font-size:18px;
+  width:36px; height:36px; border-radius:50%; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.memo-card .memo-del:active { background:#fee; color:var(--danger); }
+
+/* 空状态 */
+.empty {
+  text-align:center; padding:60px 20px; color:#ccc;
+}
+.empty .empty-icon { font-size:56px; margin-bottom:12px; }
+.empty .empty-text { font-size:15px; }
+
+/* ── 快捷操作栏(底部) ── */
+.fab {
+  position:fixed; bottom:24px; right:20px; z-index:50;
+  bottom:calc(24px + var(--safe-bottom));
+}
+.fab button {
+  width:56px; height:56px; border-radius:50%; background:var(--primary);
+  border:none; color:#fff; font-size:28px; cursor:pointer;
+  box-shadow:0 4px 16px rgba(91,108,240,.4); display:flex;
+  align-items:center; justify-content:center;
+}
+.fab button:active { transform:scale(.92); }
+
+/* ── 底部 Sheet / 弹窗 ── */
+.sheet-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:300;
+  display:flex; align-items:flex-end; opacity:0; pointer-events:none;
+  transition:opacity .2s;
+}
+.sheet-overlay.open { opacity:1; pointer-events:auto; }
+.sheet {
+  width:100%; background:#fff; border-radius:16px 16px 0 0;
+  padding:20px 16px; padding-bottom:calc(20px + var(--safe-bottom));
+  transform:translateY(100%); transition:transform .25s cubic-bezier(.4,0,.2,1);
+}
+.sheet-overlay.open .sheet { transform:translateY(0); }
+.sheet h4 { font-size:16px; margin-bottom:14px; color:#333; text-align:center; }
+.sheet input {
+  width:100%; padding:12px 14px; border:2px solid #e0e0e0; border-radius:10px;
+  font-size:16px; outline:none; margin-bottom:14px;
+}
+.sheet input:focus { border-color:var(--primary); }
+.sheet .sheet-btns { display:flex; gap:10px; }
+.sheet .sheet-btns button {
+  flex:1; padding:12px; border-radius:10px; font-size:15px; font-weight:600;
+  cursor:pointer; border:none;
+}
+.sheet .sheet-btns .btn-cancel { background:#f0f0f0; color:#666; }
+.sheet .sheet-btns .btn-ok { background:var(--primary); color:#fff; }
+.sheet .sheet-btns .btn-ok.danger { background:var(--danger); }
+
+/* ── Toast ── */
+.toast {
+  position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
+  background:#333; color:#fff; padding:10px 24px; border-radius:20px;
+  font-size:14px; z-index:500; opacity:0; transition:opacity .3s;
+  pointer-events:none;
+}
+.toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<!-- 侧滑目录抽屉 -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <span>📁 目录</span>
+    <button onclick="addRootFolder()" title="新建根目录">+</button>
+  </div>
+  <div class="drawer-tree" id="drawerTree"></div>
+  <div class="drawer-footer">
+    <button onclick="addRootFolder()">＋ 新建根目录</button>
+  </div>
+</div>
+
+<!-- 顶部栏 -->
+<div class="topbar">
+  <button class="menu-btn" onclick="openDrawer()">☰</button>
+  <h1 id="topTitle">备忘录</h1>
+  <div class="top-actions">
+    <button onclick="addMemo()">＋ 新建</button>
+  </div>
+</div>
+
+<!-- 主内容区 -->
+<div class="main">
+  <div class="main-nav">
+    <span class="breadcrumb" id="breadcrumb">选择目录开始</span>
+    <button class="nav-add" onclick="addMemo()">＋ 备忘</button>
+  </div>
+  <div class="memo-scroll" id="memoScroll"></div>
+</div>
+
+<!-- FAB 悬浮按钮 -->
+<div class="fab"><button onclick="addMemo()">＋</button></div>
+
+<!-- 底部弹窗(Ssheet) 用于重命名/确认 -->
+<div class="sheet-overlay" id="sheetOverlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════ 数据层 ═══════════════
+const K = 'memo_pwa_data';
+let data = { folders:[], rootFolderIds:[], memos:{} };
+let currentFolderId = null;
+
+function load() {
+  const raw = localStorage.getItem(K);
+  if (raw) try { data = JSON.parse(raw); } catch(_) { initDemo(); }
+  else initDemo();
+}
+function save() { localStorage.setItem(K, JSON.stringify(data)); }
+function uid() { return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+
+function initDemo() {
+  const w = uid(), p = uid(), s = uid();
+  data = {
+    folders:[
+      {id:w,name:'工作',parentId:null},
+      {id:p,name:'个人',parentId:null},
+      {id:s,name:'子项目',parentId:w},
+    ],
+    rootFolderIds:[w,p],
+    memos:{
+      [w]:[{id:uid(),text:'完成季度报告',done:false,time:'2026-06-15'},
+           {id:uid(),text:'回复客户邮件',done:true,time:'2026-06-14'}],
+      [p]:[{id:uid(),text:'买生日礼物',done:false,time:'2026-06-16'}],
+      [s]:[{id:uid(),text:'整理接口文档',done:false,time:'2026-06-13'}],
+    }
+  };
+  save();
+}
+
+function gf(id) { return data.folders.find(f=>f.id===id); }
+function gch(parentId) { return data.folders.filter(f=>f.parentId===parentId); }
+function gms(fid) {
+  if (!data.memos) data.memos = {};
+  if (!data.memos[fid]) data.memos[fid] = [];
+  return data.memos[fid];
+}
+function getPath(fid) {
+  const p=[]; let c=gf(fid); while(c){p.unshift(c.name);c=gf(c.parentId);}
+  return p.join(' › ');
+}
+function countAll(fid) {
+  let n=gms(fid).length; gch(fid).forEach(c=>n+=countAll(c.id)); return n;
+}
+
+// ═══════════════ 抽屉/树 ═══════════════
+function openDrawer() { drawer.classList.add('open'); drawerOverlay.classList.add('open'); }
+function closeDrawer() { drawer.classList.remove('open'); drawerOverlay.classList.remove('open'); }
+
+function renderDrawer() {
+  const el = document.getElementById('drawerTree');
+  el.innerHTML = data.rootFolderIds.map(id => renderNode(id,0)).join('');
+}
+function renderNode(id, depth) {
+  const f=gf(id); if(!f) return '';
+  const ch=gch(id); const hasCh=ch.length>0;
+  const isOpen = f._open!==false;
+  const active = currentFolderId===id;
+  let h=`<div class="tree-item" data-id="${id}">`;
+  h+=`<div class="tree-row${active?' active':''}" style="padding-left:${14+depth*18}px" onclick="sel('${id}')">`;
+  h+=`<span class="arrow${isOpen&&hasCh?' expanded':''}" onclick="event.stopPropagation();tog('${id}')">▶</span>`;
+  h+=`<span class="icon">${hasCh?(isOpen?'📂':'📁'):'📁'}</span>`;
+  h+=`<span class="name">${esc(f.name)}</span>`;
+  h+=`<span class="badge">${countAll(id)||''}</span>`;
+  h+=`<span class="row-actions">`;
+  h+=`<button onclick="event.stopPropagation();sheetRename('${id}')">✏️</button>`;
+  h+=`<button onclick="event.stopPropagation();confirmDeleteFolder('${id}')" style="color:#e55">🗑</button>`;
+  h+=`</span></div>`;
+  if(hasCh){h+=`<div class="children${isOpen?' open':''}">`;ch.forEach(c=>h+=renderNode(c.id,depth+1));h+=`</div>`;}
+  h+=`</div>`; return h;
+}
+
+function sel(id) { currentFolderId=id; refreshAll(); closeDrawer(); }
+function tog(id) { const f=gf(id); if(f){f._open=!(f._open!==false);refreshAll();} }
+
+// ═══════════════ 主列表 ═══════════════
+function renderMemos() {
+  const scroll=document.getElementById('memoScroll');
+  const title=document.getElementById('topTitle');
+  const bc=document.getElementById('breadcrumb');
+
+  if(!currentFolderId||!gf(currentFolderId)) {
+    title.textContent='备忘录';
+    bc.textContent='选择目录开始';
+    scroll.innerHTML=`<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">点击左上角菜单选择目录</div></div>`;
+    return;
+  }
+  const f=gf(currentFolderId);
+  title.textContent=f.name;
+  bc.textContent=getPath(currentFolderId);
+
+  const ms=gms(currentFolderId);
+  if(ms.length===0){
+    scroll.innerHTML=`<div class="empty"><div class="empty-icon">✨</div><div class="empty-text">没有备忘，点击下方 ＋ 新建</div></div>`;
+  }else{
+    scroll.innerHTML=ms.map((m,i)=>`
+      <div class="memo-card">
+        <input type="checkbox" ${m.done?'checked':''} onchange="togMemo(${i})">
+        <div class="memo-body">
+          <input class="memo-text${m.done?' done':''}" value="${esc(m.text)}"
+                 onchange="updText(${i},this.value)" onkeydown="mkd(event,${i})">
+          <div class="memo-time">${m.time||''}</div>
+        </div>
+        <button class="memo-del" onclick="delMemo(${i})">🗑</button>
+      </div>
+    `).join('');
+  }
+}
+
+function refreshAll() { renderDrawer(); renderMemos(); save(); }
+
+// ═══════════════ 目录操作 ═══════════════
+function addRootFolder() {
+  showSheet('新建根目录', '', '确定', false, (name)=>{
+    if(!name.trim()) return;
+    const id=uid();
+    data.folders.push({id,name:name.trim(),parentId:null});
+    data.rootFolderIds.push(id);
+    currentFolderId=id; refreshAll();
+    toast('目录已创建');
+  });
+}
+
+function addSubFolder(parentId) {
+  const p=gf(parentId); if(!p) return;
+  showSheet(`在「${p.name}」下新建`, '', '创建', false, (name)=>{
+    if(!name.trim()) return;
+    const id=uid();
+    data.folders.push({id,name:name.trim(),parentId});
+    p._open=true;
+    currentFolderId=id; refreshAll();
+    toast('子目录已创建');
+  });
+}
+
+function sheetRename(id) {
+  const f=gf(id); if(!f) return;
+  showSheet('重命名', f.name, '保存', false, (name)=>{
+    if(!name.trim()) return;
+    f.name=name.trim(); refreshAll();
+  });
+}
+
+function confirmDeleteFolder(id) {
+  const f=gf(id); if(!f) return;
+  const total=countAll(id);
+  showSheet(`删除「${f.name}」？`, `${total} 条备忘将被一并删除，不可恢复。`, '确认删除', true, ()=>{
+    (function delRec(fid){
+      gch(fid).forEach(c=>delRec(c.id));
+      delete data.memos[fid];
+      data.folders=data.folders.filter(x=>x.id!==fid);
+    })(id);
+    data.rootFolderIds=data.rootFolderIds.filter(x=>x!==id);
+    if(currentFolderId===id) currentFolderId=null;
+    refreshAll(); toast('已删除');
+  });
+}
+
+// ═══════════════ 备忘操作 ═══════════════
+function addMemo() {
+  if(!currentFolderId){ toast('请先选择目录'); return; }
+  const ms=gms(currentFolderId);
+  ms.push({id:uid(),text:'',done:false,time:new Date().toISOString().slice(0,10)});
+  refreshAll();
+  setTimeout(()=>{
+    const inputs=document.querySelectorAll('.memo-text');
+    const last=inputs[inputs.length-1];
+    if(last){last.focus();last.scrollIntoView({behavior:'smooth',block:'center'});}
+  },100);
+}
+
+function togMemo(i) {
+  const ms=gms(currentFolderId);
+  if(ms[i]){ms[i].done=!ms[i].done;save();renderMemos();}
+}
+
+function updtText(i,val) {
+  const ms=gms(currentFolderId);
+  if(ms[i]){ms[i].text=val;save();}
+}
+
+function mkd(e,i) {
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const ms=gms(currentFolderId);
+    if(ms[i] && ms[i].text.trim()==='') ms.splice(i,1);
+    addMemo();
+  }
+  if(e.key==='Backspace' && e.target.value===''){
+    const ms=gms(currentFolderId);
+    if(ms.length>1){e.preventDefault();ms.splice(i,1);refreshAll();
+      setTimeout(()=>{
+        const inputs=document.querySelectorAll('.memo-text');
+        const prev=inputs[Math.min(i,inputs.length-1)];
+        if(prev)prev.focus();
+      },100);
+    }
+  }
+}
+
+function delMemo(i) {
+  const ms=gms(currentFolderId);
+  ms.splice(i,1); refreshAll();
+}
+
+// ═══════════════ Sheet 弹窗 ═══════════════
+let _sheetCb=null;
+function showSheet(title, placeholder, btnText, danger, cb) {
+  _sheetCb=cb;
+  const overlay=document.getElementById('sheetOverlay');
+  const sheet=document.getElementById('sheet');
+  const isConfirm=danger;
+  sheet.innerHTML=`
+    <h4>${title}</h4>
+    ${isConfirm
+      ?`<div style="text-align:center;color:#888;margin-bottom:14px;font-size:14px;">${placeholder}</div>`
+      :`<input id="sheetInput" placeholder="${placeholder||'输入名称'}" autofocus>`}
+    <div class="sheet-btns">
+      <button class="btn-cancel" onclick="closeSheet()">取消</button>
+      <button class="btn-ok${danger?' danger':''}" id="sheetOk">${btnText}</button>
+    </div>`;
+  overlay.classList.add('open');
+
+  if(!isConfirm){
+    const inp=document.getElementById('sheetInput');
+    if(inp){
+      setTimeout(()=>inp.focus(),200);
+      inp.addEventListener('keydown',e=>{if(e.key==='Enter'){const v=inp.value;closeSheet();if(_sheetCb)_sheetCb(v);}});
+    }
+  }
+  document.getElementById('sheetOk').onclick=()=>{
+    const inp=document.getElementById('sheetInput');
+    const v=inp?inp.value:'confirmed';
+    closeSheet();
+    if(_sheetCb) _sheetCb(v);
+  };
+}
+function closeSheet() {
+  document.getElementById('sheetOverlay').classList.remove('open');
+  _sheetCb=null;
+}
+document.getElementById('sheetOverlay').addEventListener('click',function(e){
+  if(e.target===this) closeSheet();
+});
+
+// ═══════════════ Toast ═══════════════
+let _toastTimer;
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('show'),1800);
+}
+
+// ═══════════════ 工具函数 ═══════════════
+function esc(s) {
+  const d=document.createElement('div'); d.textContent=s; return d.innerHTML;
+}
+
+// ═══════════════ PWA 注册 ═══════════════
+if('serviceWorker' in navigator) {
+  // 内联 SW
+  const swCode = `
+    const CACHE = 'memo-v2';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])));
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
+          if(resp.ok){const clone=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}
+          return resp;
+        }))
+      );
+    });
+  `;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+
+// 右键长按: 在目录上长按弹出子目录选项 (移动端替代右键)
+let _longPressTimer;
+document.getElementById('drawerTree').addEventListener('touchstart', function(e) {
+  const row = e.target.closest('.tree-row');
+  if (!row) return;
+  const item = row.closest('.tree-item');
+  if (!item) return;
+  const fid = item.dataset.id;
+  _longPressTimer = setTimeout(() => {
+    if (navigator.vibrate) navigator.vibrate(15);
+    addSubFolder(fid);
+  }, 600);
+}, {passive:true});
+document.getElementById('drawerTree').addEventListener('touchend', ()=>clearTimeout(_longPressTimer));
+document.getElementById('drawerTree').addEventListener('touchmove', ()=>clearTimeout(_longPressTimer));
+
+// ═══════════════ 启动 ═══════════════
+load();
+if(data.rootFolderIds.length>0) currentFolderId=data.rootFolderIds[0];
+renderDrawer();
+renderMemos();
+</script>
+</body>
+</html>
