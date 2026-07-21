@@ -1,6 +1,7 @@
 package com.shoujopomodoro.ui.screen.settings
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shoujopomodoro.ShoujoPomodoroApp
@@ -14,7 +15,8 @@ data class SettingsUiState(
     val focusMinutes: Int = 25,
     val shortBreakMinutes: Int = 5,
     val longBreakMinutes: Int = 15,
-    val cyclesBeforeLongBreak: Int = 4
+    val cyclesBeforeLongBreak: Int = 4,
+    val language: String = "en"
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -25,6 +27,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
+    // Callback that the Activity sets to trigger a recreate for hot locale switching
+    var onLanguageChanged: (() -> Unit)? = null
+
     init {
         viewModelScope.launch {
             settingsRepo.settingsFlow.collect { settings ->
@@ -32,7 +37,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     focusMinutes = settings.focusDurationMinutes,
                     shortBreakMinutes = settings.shortBreakMinutes,
                     longBreakMinutes = settings.longBreakMinutes,
-                    cyclesBeforeLongBreak = settings.cyclesBeforeLongBreak
+                    cyclesBeforeLongBreak = settings.cyclesBeforeLongBreak,
+                    language = settings.language
                 )
             }
         }
@@ -52,6 +58,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateCycles(cycles: Int) {
         viewModelScope.launch { settingsRepo.updateCycles(cycles) }
+    }
+
+    fun updateLanguage(lang: String) {
+        viewModelScope.launch {
+            settingsRepo.updateLanguage(lang)
+            // Save to SharedPreferences for synchronous read in MainActivity.attachBaseContext
+            val sp = getApplication<ShoujoPomodoroApp>()
+                .getSharedPreferences("app_locale_prefs", Context.MODE_PRIVATE)
+            sp.edit().putString("current_locale", lang).commit()
+            // Update UI state immediately
+            _uiState.value = _uiState.value.copy(language = lang)
+            // Trigger Activity recreate for hot locale switching
+            onLanguageChanged?.invoke()
+        }
     }
 
     fun resetDefaults() {

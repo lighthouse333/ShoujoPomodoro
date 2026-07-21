@@ -9,4 +9,5 @@ interface TimerSettingsRepository {
     suspend fun updateShortBreak(minutes: Int)
     suspend fun updateLongBreak(minutes: Int)
     suspend fun updateCycles(cycles: Int)
+    suspend fun updateLanguage(lang: String)
 }

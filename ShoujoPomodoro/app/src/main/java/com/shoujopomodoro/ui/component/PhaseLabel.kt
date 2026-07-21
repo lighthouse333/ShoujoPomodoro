@@ -10,9 +10,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.shoujopomodoro.R
 import com.shoujopomodoro.domain.model.TimerPhase
 
 @Composable
@@ -24,15 +26,15 @@ fun PhaseLabel(
 ) {
     val (label, bgColor) = when (phase) {
         TimerPhase.FOCUS -> Pair(
-            "Focus ${currentCycle}/${totalCycles}",
+            stringResource(R.string.phase_focus_format, currentCycle, totalCycles),
             MaterialTheme.colorScheme.primary
         )
         TimerPhase.SHORT_BREAK -> Pair(
-            "Short Break",
+            stringResource(R.string.phase_short_break),
             Color(0xFF66BB6A)
         )
         TimerPhase.LONG_BREAK -> Pair(
-            "Long Break",
+            stringResource(R.string.phase_long_break),
             Color(0xFF42A5F5)
         )
     }

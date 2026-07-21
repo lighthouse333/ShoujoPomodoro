@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">少女番茄钟</string>
+    <string name="timer_channel_name">计时器进度</string>
+    <string name="timer_channel_desc">显示正在进行的倒计时</string>
+    <string name="alert_channel_name">计时器提醒</string>
+    <string name="alert_channel_desc">计时结束时发出提醒</string>
+    <string name="phase_focus">专注</string>
+    <string name="phase_short_break">短休息</string>
+    <string name="phase_long_break">长休息</string>
+    <string name="phase_focus_format">专注 %1$d/%2$d</string>
+    <string name="time_up_focus">专注时间结束！休息一下吧~</string>
+    <string name="time_up_break">休息结束！准备好专注了吗？</string>
+    <string name="start">开始</string>
+    <string name="pause">暂停</string>
+    <string name="reset">重置</string>
+    <string name="skip">跳过</string>
+    <string name="settings">设置</string>
+    <string name="tasks">任务</string>
+    <string name="add_task">添加任务</string>
+    <string name="delete_task">删除任务</string>
+    <string name="focus_duration">专注时长</string>
+    <string name="short_break_duration">短休息</string>
+    <string name="long_break_duration">长休息</string>
+    <string name="cycles_count">长休息前的循环次数</string>
+    <string name="reset_defaults">恢复默认设置</string>
+    <string name="language">语言</string>
+    <string name="language_en">English</string>
+    <string name="language_zh">中文</string>
+    <string name="app_title">少女番茄钟</string>
+    <string name="focus_duration_unit">分钟</string>
+    <string name="short_break_unit">分钟</string>
+    <string name="long_break_unit">分钟</string>
+    <string name="cycles_unit">次</string>
+    <string name="empty_task_list">还没有任务\n点击 + 添加一个吧！</string>
+</resources>

@@ -8,6 +8,7 @@
     <string name="phase_focus">Focus</string>
     <string name="phase_short_break">Short Break</string>
     <string name="phase_long_break">Long Break</string>
+    <string name="phase_focus_format">Focus %1$d/%2$d</string>
     <string name="time_up_focus">Focus session complete! Take a break~</string>
     <string name="time_up_break">Break over! Ready to focus?</string>
     <string name="start">Start</string>
@@ -23,4 +24,13 @@
     <string name="long_break_duration">Long Break</string>
     <string name="cycles_count">Cycles before long break</string>
     <string name="reset_defaults">Reset to Defaults</string>
+    <string name="language">Language</string>
+    <string name="language_en">English</string>
+    <string name="language_zh">中文</string>
+    <string name="app_title">Shoujo Pomodoro</string>
+    <string name="focus_duration_unit">min</string>
+    <string name="short_break_unit">min</string>
+    <string name="long_break_unit">min</string>
+    <string name="cycles_unit">×</string>
+    <string name="empty_task_list">No tasks yet\nTap + to add one!</string>
 </resources>

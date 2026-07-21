@@ -14,7 +14,9 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.shoujopomodoro.R
 
 @Composable
 fun TimerControlButtons(
@@ -38,7 +40,7 @@ fun TimerControlButtons(
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         ) {
-            Icon(Icons.Default.Refresh, contentDescription = "Reset")
+            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.reset))
         }
 
         // Play/Pause button (larger)
@@ -52,7 +54,7 @@ fun TimerControlButtons(
         ) {
             Icon(
                 imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isRunning) "Pause" else "Start",
+                contentDescription = if (isRunning) stringResource(R.string.pause) else stringResource(R.string.start),
                 modifier = Modifier.size(36.dp)
             )
         }
@@ -66,7 +68,7 @@ fun TimerControlButtons(
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         ) {
-            Icon(Icons.Default.SkipNext, contentDescription = "Skip")
+            Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.skip))
         }
     }
 }

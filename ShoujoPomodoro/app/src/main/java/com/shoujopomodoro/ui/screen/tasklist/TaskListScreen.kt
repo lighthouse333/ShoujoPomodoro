@@ -25,11 +25,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shoujopomodoro.R
 import com.shoujopomodoro.ui.component.TaskInputDialog
 import com.shoujopomodoro.ui.component.TaskItem
 
@@ -44,7 +46,7 @@ fun TaskListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tasks", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.tasks), fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -57,7 +59,7 @@ fun TaskListScreen(
                 onClick = { viewModel.showAddDialog() },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Task")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_task))
             }
         }
     ) { paddingValues ->
@@ -77,7 +79,7 @@ fun TaskListScreen(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                     Text(
-                        text = "No tasks yet\nTap + to add one!",
+                        text = stringResource(R.string.empty_task_list),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center
