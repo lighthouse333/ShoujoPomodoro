@@ -25,4 +25,8 @@ class TimerSettingsRepositoryImpl(
     override suspend fun updateCycles(cycles: Int) {
         preferences.updateCycles(cycles)
     }
+
+    override suspend fun updateLanguage(lang: String) {
+        preferences.updateLanguage(lang)
+    }
 }
