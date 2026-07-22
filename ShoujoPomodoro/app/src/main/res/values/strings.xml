@@ -33,4 +33,17 @@
     <string name="long_break_unit">min</string>
     <string name="cycles_unit">×</string>
     <string name="empty_task_list">No tasks yet\nTap + to add one!</string>
+    <string name="music_player">Music Player</string>
+    <string name="import_music">Import Music</string>
+    <string name="no_music_playing">No music playing</string>
+    <string name="music_play">Play</string>
+    <string name="music_pause">Pause</string>
+    <string name="music_stop">Stop</string>
+    <string name="music_next">Next</string>
+    <string name="music_prev">Previous</string>
+    <string name="music_imported">Imported Music</string>
+    <string name="music_empty">No music imported yet</string>
+    <string name="clock_position">Clock Position</string>
+    <string name="clock_position_top_bar">Top Bar</string>
+    <string name="clock_position_center">Center (above timer)</string>
 </resources>

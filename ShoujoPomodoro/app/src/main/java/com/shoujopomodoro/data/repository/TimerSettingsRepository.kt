@@ -10,4 +10,7 @@ interface TimerSettingsRepository {
     suspend fun updateLongBreak(minutes: Int)
     suspend fun updateCycles(cycles: Int)
     suspend fun updateLanguage(lang: String)
+    suspend fun updateClockPosition(position: String)
+    suspend fun updateMusicPaths(paths: List<String>)
+    suspend fun updateCurrentMusicIndex(index: Int)
 }

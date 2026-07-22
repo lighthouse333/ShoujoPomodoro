@@ -33,4 +33,17 @@
     <string name="long_break_unit">分钟</string>
     <string name="cycles_unit">次</string>
     <string name="empty_task_list">还没有任务\n点击 + 添加一个吧！</string>
+    <string name="music_player">音乐播放器</string>
+    <string name="import_music">导入音乐</string>
+    <string name="no_music_playing">未播放音乐</string>
+    <string name="music_play">播放</string>
+    <string name="music_pause">暂停</string>
+    <string name="music_stop">停止</string>
+    <string name="music_next">下一首</string>
+    <string name="music_prev">上一首</string>
+    <string name="music_imported">已导入音乐</string>
+    <string name="music_empty">尚未导入音乐</string>
+    <string name="clock_position">时钟位置</string>
+    <string name="clock_position_top_bar">顶部栏</string>
+    <string name="clock_position_center">中央（计时上方）</string>
 </resources>

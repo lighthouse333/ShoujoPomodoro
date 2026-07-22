@@ -23,12 +23,16 @@ class TimerPreferences(private val context: Context) {
         val LONG_BREAK_DURATION = intPreferencesKey("long_break_duration")
         val CYCLES_BEFORE_LONG_BREAK = intPreferencesKey("cycles_before_long_break")
         val LANGUAGE = stringPreferencesKey("app_language")
+        val CLOCK_POSITION = stringPreferencesKey("clock_position")
+        val MUSIC_PATHS = stringPreferencesKey("music_paths")
+        val CURRENT_MUSIC_INDEX = intPreferencesKey("current_music_index")
 
         const val DEFAULT_FOCUS = 25
         const val DEFAULT_SHORT_BREAK = 5
         const val DEFAULT_LONG_BREAK = 15
         const val DEFAULT_CYCLES = 4
         const val DEFAULT_LANGUAGE = "en"
+        const val DEFAULT_CLOCK_POSITION = "top_bar"
     }
 
     val settingsFlow: Flow<TimerSettings> = context.dataStore.data.map { prefs ->
@@ -37,7 +41,10 @@ class TimerPreferences(private val context: Context) {
             shortBreakMinutes = prefs[SHORT_BREAK_DURATION] ?: DEFAULT_SHORT_BREAK,
             longBreakMinutes = prefs[LONG_BREAK_DURATION] ?: DEFAULT_LONG_BREAK,
             cyclesBeforeLongBreak = prefs[CYCLES_BEFORE_LONG_BREAK] ?: DEFAULT_CYCLES,
-            language = prefs[LANGUAGE] ?: DEFAULT_LANGUAGE
+            language = prefs[LANGUAGE] ?: DEFAULT_LANGUAGE,
+            clockPosition = prefs[CLOCK_POSITION] ?: DEFAULT_CLOCK_POSITION,
+            musicPaths = (prefs[MUSIC_PATHS] ?: "").split(",").filter { it.isNotBlank() },
+            currentMusicIndex = prefs[CURRENT_MUSIC_INDEX] ?: 0
         )
     }
 
@@ -66,6 +73,18 @@ class TimerPreferences(private val context: Context) {
             .putString(SP_KEY_LANGUAGE, lang)
             .apply()
     }
+
+    suspend fun updateClockPosition(position: String) {
+        context.dataStore.edit { it[CLOCK_POSITION] = position }
+    }
+
+    suspend fun updateMusicPaths(paths: List<String>) {
+        context.dataStore.edit { it[MUSIC_PATHS] = paths.joinToString(",") }
+    }
+
+    suspend fun updateCurrentMusicIndex(index: Int) {
+        context.dataStore.edit { it[CURRENT_MUSIC_INDEX] = index }
+    }
 }
 
 data class TimerSettings(
@@ -73,5 +92,8 @@ data class TimerSettings(
     val shortBreakMinutes: Int = 5,
     val longBreakMinutes: Int = 15,
     val cyclesBeforeLongBreak: Int = 4,
-    val language: String = "en"
+    val language: String = "en",
+    val clockPosition: String = "top_bar",
+    val musicPaths: List<String> = emptyList(),
+    val currentMusicIndex: Int = 0
 )

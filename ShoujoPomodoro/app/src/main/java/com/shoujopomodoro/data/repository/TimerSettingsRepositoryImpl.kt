@@ -29,4 +29,16 @@ class TimerSettingsRepositoryImpl(
     override suspend fun updateLanguage(lang: String) {
         preferences.updateLanguage(lang)
     }
+
+    override suspend fun updateClockPosition(position: String) {
+        preferences.updateClockPosition(position)
+    }
+
+    override suspend fun updateMusicPaths(paths: List<String>) {
+        preferences.updateMusicPaths(paths)
+    }
+
+    override suspend fun updateCurrentMusicIndex(index: Int) {
+        preferences.updateCurrentMusicIndex(index)
+    }
 }
