@@ -13,40 +13,74 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// ═══════════════════════════════════════════════
+//  Light Color Scheme — 春日午后花园
+// ═══════════════════════════════════════════════
 private val LightColorScheme = lightColorScheme(
-    primary = Pink40,
+    primary = SakuraDeep,
     onPrimary = Color.White,
-    primaryContainer = PinkLight,
+    primaryContainer = SakuraGlow,
     onPrimaryContainer = Color(0xFF880E4F),
-    secondary = Purple40,
+
+    secondary = WisteriaDeep,
     onSecondary = Color.White,
-    secondaryContainer = Purple80,
+    secondaryContainer = WisteriaGlow,
     onSecondaryContainer = Color(0xFF4A148C),
-    background = SurfacePink,
+
+    tertiary = SkyBlue,
+    onTertiary = Color(0xFF003541),
+    tertiaryContainer = IceBlue,
+    onTertiaryContainer = Color(0xFF014361),
+
+    background = LightPinkBg,
     onBackground = Color(0xFF1C1B1F),
-    surface = Color.White,
+    surface = LightCard,
     onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFF5F5F5),
+    surfaceVariant = Color(0xFFF5F0F5),
     onSurfaceVariant = Color(0xFF49454F),
-    outline = Color(0xFF79747E)
+
+    outline = WisteriaLavender.copy(alpha = 0.6f),
+    outlineVariant = WisteriaLight.copy(alpha = 0.4f),
+
+    error = CoralRose,
+    onError = Color.White,
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF93000A),
 )
 
+// ═══════════════════════════════════════════════
+//  Dark Color Scheme — 星夜魔法少女
+// ═══════════════════════════════════════════════
 private val DarkColorScheme = darkColorScheme(
-    primary = Pink80,
+    primary = SakuraPink,
     onPrimary = Color(0xFF650033),
     primaryContainer = Color(0xFF8E0045),
-    onPrimaryContainer = PinkLight,
-    secondary = Purple80,
+    onPrimaryContainer = SakuraLight,
+
+    secondary = WisteriaLavender,
     onSecondary = Color(0xFF35005A),
     secondaryContainer = Color(0xFF5C00AA),
-    onSecondaryContainer = Color(0xFFEADDFF),
-    background = SurfaceDark,
+    onSecondaryContainer = WisteriaGlow,
+
+    tertiary = MermaidBlue,
+    onTertiary = Color(0xFF003541),
+    tertiaryContainer = Color(0xFF014361),
+    onTertiaryContainer = IceBlue,
+
+    background = DarkNavy,
     onBackground = Color(0xFFE6E1E5),
-    surface = Color(0xFF252535),
+    surface = DarkIndigo,
     onSurface = Color(0xFFE6E1E5),
-    surfaceVariant = Color(0xFF333345),
+    surfaceVariant = DarkCard,
     onSurfaceVariant = Color(0xFFCAC4D0),
-    outline = Color(0xFF938F99)
+
+    outline = WisteriaLavender.copy(alpha = 0.3f),
+    outlineVariant = WisteriaDeep.copy(alpha = 0.2f),
+
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
 )
 
 @Composable
@@ -60,14 +94,16 @@ fun ShoujoPomodoroTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            // Edge-to-edge with transparent system bars
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = ShoujoTypography,
+        shapes = ShoujoShapes,
         content = content
     )
 }

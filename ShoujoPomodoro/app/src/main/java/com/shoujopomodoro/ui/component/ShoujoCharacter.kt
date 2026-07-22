@@ -35,7 +35,7 @@ import com.shoujopomodoro.domain.model.CharacterState
 import com.shoujopomodoro.ui.theme.BlushPink
 import com.shoujopomodoro.ui.theme.BowRed
 import com.shoujopomodoro.ui.theme.EyeBlue
-import com.shoujopomodoro.ui.theme.HairPink
+import com.shoujopomodoro.ui.theme.HairSakura
 import com.shoujopomodoro.ui.theme.SkinTone
 import com.shoujopomodoro.ui.theme.UniformNavy
 import kotlin.math.cos
@@ -269,7 +269,7 @@ private fun DrawScope.drawBow(x: Float, y: Float, size: Float) {
 // ============================================================
 
 private fun DrawScope.drawHairBack(w: Float, h: Float, cx: Float, cy: Float) {
-    val hairColor = HairPink
+    val hairColor = HairSakura
     val faceCenterY = cy - h * 0.08f
 
     // Main back hair — large rounded shape behind face
@@ -568,7 +568,7 @@ private fun DrawScope.drawMouth(w: Float, h: Float, cx: Float, cy: Float, state:
 // ============================================================
 
 private fun DrawScope.drawHairFront(w: Float, h: Float, cx: Float, cy: Float) {
-    val hairColor = HairPink
+    val hairColor = HairSakura
     val faceCenterY = cy - h * 0.08f
     val faceWidth = w * 0.24f
     val faceHeight = h * 0.22f

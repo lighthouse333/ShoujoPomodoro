@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shoujopomodoro.ShoujoPomodoroApp
+import com.shoujopomodoro.data.preferences.TimerSettings
 import com.shoujopomodoro.domain.model.CharacterState
 import com.shoujopomodoro.domain.model.TimerPhase
 import com.shoujopomodoro.domain.model.TimerSession
@@ -25,7 +26,9 @@ data class TimerUiState(
     val characterState: CharacterState = CharacterState.IDLE,
     val totalCycles: Int = 4,
     val phaseLabel: String = "Focus",
-    val showPermissionRequest: Boolean = false
+    val showPermissionRequest: Boolean = false,
+    val clockPosition: String = "top_bar",
+    val musicPaths: List<String> = emptyList()
 )
 
 class TimerViewModel(application: Application) : AndroidViewModel(application) {
@@ -45,7 +48,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 stateHolder.session,
                 settingsRepo.settingsFlow
             ) { session, settings ->
-                buildUiState(session, settings.cyclesBeforeLongBreak)
+                buildUiState(session, settings)
             }.collectLatest { state ->
                 _uiState.value = state
 
@@ -95,7 +98,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.value = _uiState.value.copy(showPermissionRequest = false)
     }
 
-    private fun buildUiState(session: TimerSession, cycles: Int): TimerUiState {
+    private fun buildUiState(session: TimerSession, settings: TimerSettings): TimerUiState {
         val phaseLabel = when (session.phase) {
             TimerPhase.FOCUS -> "Focus"
             TimerPhase.SHORT_BREAK -> "Short Break"
@@ -109,8 +112,10 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
             isRunning = session.isRunning,
             currentCycle = session.currentCycle,
             characterState = session.characterState,
-            totalCycles = cycles,
-            phaseLabel = phaseLabel
+            totalCycles = settings.cyclesBeforeLongBreak,
+            phaseLabel = phaseLabel,
+            clockPosition = settings.clockPosition,
+            musicPaths = settings.musicPaths
         )
     }
 }
