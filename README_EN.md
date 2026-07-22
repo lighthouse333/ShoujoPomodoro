@@ -19,6 +19,22 @@ Built with Jetpack Compose & Material 3 · Premium Visual Experience
 
 ---
 
+## 📸 Screenshots
+
+<div align="center">
+
+| Timer Main | Running | Task List |
+|:---:|:---:|:---:|
+| ![Timer](screenshots/01_timer_main.png) | ![Running](screenshots/02_timer_running.png) | ![Tasks](screenshots/04_task_list.png) |
+
+| Settings | English Mode |
+|:---:|:---:|
+| ![Settings](screenshots/03_settings.png) | ![English](screenshots/05_timer_en.png) |
+
+</div>
+
+---
+
 ## ✨ What's New (July 2026 UI Overhaul)
 
 The app has received a complete visual transformation — from a simple timer to a **dreamy shoujo experience**:

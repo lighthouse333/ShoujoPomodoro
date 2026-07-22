@@ -19,6 +19,22 @@
 
 ---
 
+## 📸 应用截图
+
+<div align="center">
+
+| 计时器主界面 | 运行中 | 任务列表 |
+|:---:|:---:|:---:|
+| ![计时器](screenshots/01_timer_main.png) | ![运行中](screenshots/02_timer_running.png) | ![任务列表](screenshots/04_task_list.png) |
+
+| 设置页面 | 英文模式 |
+|:---:|:---:|
+| ![设置](screenshots/03_settings.png) | ![英文](screenshots/05_timer_en.png) |
+
+</div>
+
+---
+
 ## ✨ 2026年7月 UI 全面升级
 
 应用经历了彻底的视觉改造——从简洁的计时器蜕变为**梦幻少女体验**：
