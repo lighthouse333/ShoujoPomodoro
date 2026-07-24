@@ -4,6 +4,9 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Binder
 import android.os.Build
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
+import java.io.FileInputStream
 
 class MusicPlayerService : Service() {
 
@@ -31,6 +35,11 @@ class MusicPlayerService : Service() {
     private val binder = MusicBinder()
     private var mediaPlayer: MediaPlayer? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Audio focus
+    private var audioManager: AudioManager? = null
+    private var hasAudioFocus = false
+    private var audioFocusRequest: AudioFocusRequest? = null
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -51,6 +60,7 @@ class MusicPlayerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // Notification channel
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
@@ -60,16 +70,99 @@ class MusicPlayerService : Service() {
             )
             notificationManager.createNotificationChannel(channel)
         }
+        // Audio manager for focus handling
+        audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
     }
 
     fun setPlaylist(paths: List<String>) {
         playlist = paths
     }
 
-    /**
-     * Safe foreground start — uses the 3-parameter version on Android 14+
-     * which requires explicit foregroundServiceType since API 34.
-     */
+    // ── Audio Focus ──────────────────────────────────────────────
+
+    private fun requestAudioFocus(): Boolean {
+        val am = audioManager ?: return false
+        if (hasAudioFocus) return true
+
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener(audioFocusListener)
+                    .build()
+                audioFocusRequest = focusRequest
+                val result = am.requestAudioFocus(focusRequest)
+                hasAudioFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+                hasAudioFocus
+            } else {
+                @Suppress("DEPRECATION")
+                val result = am.requestAudioFocus(
+                    audioFocusListener,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN
+                )
+                hasAudioFocus = (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+                hasAudioFocus
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Audio focus request failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun abandonAudioFocus() {
+        if (!hasAudioFocus) return
+        val am = audioManager ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+                audioFocusRequest = null
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(audioFocusListener)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Audio focus abandon failed: ${e.message}")
+        }
+        hasAudioFocus = false
+    }
+
+    private val audioFocusListener = object : AudioManager.OnAudioFocusChangeListener {
+        override fun onAudioFocusChange(focusChange: Int) {
+            Log.d(TAG, "Audio focus change: $focusChange")
+            mainHandler.post {
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_GAIN -> {
+                        // Resume playback if it was paused due to transient loss
+                        if (!isMediaPlayerPlaying()) {
+                            resume()
+                        }
+                    }
+                    AudioManager.AUDIOFOCUS_LOSS -> {
+                        // Permanent loss — stop playback (e.g., another app started playing)
+                        abandonAudioFocus()
+                        pause()
+                    }
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                        // Transient loss — pause (e.g., phone call)
+                        pause()
+                    }
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                        // Transient loss but we can duck — lower volume or just keep playing
+                        // For a pomodoro app, just keep playing at normal volume
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Foreground Service ──────────────────────────────────────
+
     private fun startForegroundSafe(notification: android.app.Notification) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -81,15 +174,31 @@ class MusicPlayerService : Service() {
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Could not start foreground: ${e.message}")
+            // On some devices (Xiaomi, etc.), foreground service start may fail.
+            // Music playback can continue without the notification.
         } catch (e: Exception) {
             Log.w(TAG, "Could not start foreground: ${e.message}")
         }
     }
 
+    private fun stopForegroundSafe(detach: Boolean) {
+        try {
+            if (detach) {
+                stopForeground(STOP_FOREGROUND_DETACH)
+            } else {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not stop foreground: ${e.message}")
+        }
+    }
+
+    // ── Thread Safety ───────────────────────────────────────────
+
     /**
      * All MediaPlayer operations MUST run on the main thread.
-     * MediaPlayer callbacks (onCompletion, onError) fire from native threads,
-     * so we always post to the main looper.
      */
     private fun runOnMainThread(action: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -99,30 +208,73 @@ class MusicPlayerService : Service() {
         }
     }
 
+    /** Ensure [action] runs on the main thread and blocks until it completes. */
+    private fun ensureMainThread(action: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action()
+        } else {
+            val latch = java.util.concurrent.CountDownLatch(1)
+            mainHandler.post {
+                try { action() } finally { latch.countDown() }
+            }
+            try { latch.await() } catch (_: InterruptedException) {}
+        }
+    }
+
+    // ── Playback ────────────────────────────────────────────────
+
     fun play(index: Int): Boolean {
+        // Validate
         if (index < 0 || index >= playlist.size) {
             Log.w(TAG, "Invalid track index: $index, playlist size: ${playlist.size}")
             return false
         }
         val filePath = playlist[index]
         val file = File(filePath)
-        if (!file.exists()) {
-            Log.w(TAG, "File not found: $filePath")
+        if (!file.exists() || !file.canRead()) {
+            Log.w(TAG, "File not found or unreadable: $filePath")
             _errorMessage.value = "File not found: ${file.nameWithoutExtension}"
             return false
         }
 
-        // Release previous player (must be on main thread)
-        runOnMainThread { releasePlayerInternal() }
+        // All MP operations must be on main thread — synchronize
+        var result = false
+        ensureMainThread {
+            result = playOnMainThread(file)
+        }
+        return result
+    }
 
-        // Set index synchronously so notification sees the correct value
-        _currentTrackIndex.value = index
+    /** Must be called from main thread */
+    private fun playOnMainThread(file: File): Boolean {
+        // Release any existing player
+        releasePlayerInternal()
+
+        val filePath = file.absolutePath
+
+        // Request audio focus before attempting playback
+        requestAudioFocus()
 
         val mp = MediaPlayer()
+        var fis: FileInputStream? = null
         return try {
-            mp.setDataSource(filePath)
+            // Set audio attributes (required for proper routing on multi-output devices)
+            mp.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+
+            // Use FileDescriptor — more compatible across devices than String path.
+            // Some OEM MediaPlayer implementations (Xiaomi, older Samsung) handle
+            // FileDescriptor more reliably than file-path strings.
+            fis = FileInputStream(file)
+            mp.setDataSource(fis.fd)
+            fis.close() // FD is dup'd by MediaPlayer, safe to close
+            fis = null
+
             mp.setOnCompletionListener {
-                // Callback from native thread — post to main to avoid threading issues
                 mainHandler.post {
                     if (mediaPlayer === mp) {
                         playNext()
@@ -130,16 +282,36 @@ class MusicPlayerService : Service() {
                 }
             }
             mp.setOnErrorListener { _, what, extra ->
-                Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
-                _errorMessage.value = "Playback error (code: $what)"
-                // Post to main thread
+                Log.e(TAG, "MediaPlayer error: what=$what extra=$extra file=${file.name}")
+                val msg = when (what) {
+                    MediaPlayer.MEDIA_ERROR_SERVER_DIED ->
+                        "Audio server died — please restart the app"
+                    MediaPlayer.MEDIA_ERROR_UNKNOWN -> {
+                        if (extra == MediaPlayer.MEDIA_ERROR_IO) "Cannot read audio file"
+                        else if (extra == MediaPlayer.MEDIA_ERROR_UNSUPPORTED) "Unsupported audio format"
+                        else "Playback error (code: $what, extra: $extra)"
+                    }
+                    else -> "Playback error (code: $what)"
+                }
+                _errorMessage.value = msg
                 mainHandler.post {
                     if (mediaPlayer === mp) {
                         releasePlayerInternal()
+                        abandonAudioFocus()
                     }
                 }
                 true // error handled
             }
+            mp.setOnInfoListener { _, what, _ ->
+                Log.d(TAG, "MediaPlayer info: $what")
+                if (what == MediaPlayer.MEDIA_INFO_BUFFERING_START) {
+                    Log.d(TAG, "Buffering started for: ${file.name}")
+                }
+                false // let MediaPlayer handle it
+            }
+
+            // Use synchronous prepare() — for local files this is <50ms and avoids
+            // the async-callback timing issues that can crash on some devices.
             mp.prepare()
             mp.start()
             mediaPlayer = mp
@@ -149,10 +321,20 @@ class MusicPlayerService : Service() {
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to play: ${file.nameWithoutExtension}", e)
-            _errorMessage.value = "Cannot play: ${file.nameWithoutExtension}"
+            val errorMsg = when {
+                e is java.io.FileNotFoundException -> "File not accessible"
+                e is java.io.IOException && e.message?.contains("setDataSource") == true ->
+                    "Cannot read audio file (unsupported format or corrupted)"
+                e is java.io.IOException -> "Audio playback IO error"
+                e is IllegalStateException -> "Player error — please try again"
+                else -> "Cannot play: ${file.nameWithoutExtension}"
+            }
+            _errorMessage.value = errorMsg
+            try { fis?.close() } catch (_: Exception) {}
             try { mp.reset() } catch (_: Exception) {}
             try { mp.release() } catch (_: Exception) {}
             _isPlaying.value = false
+            abandonAudioFocus()
             false
         }
     }
@@ -174,6 +356,7 @@ class MusicPlayerService : Service() {
             val mp = mediaPlayer ?: return@runOnMainThread
             try {
                 if (!mp.isPlaying) {
+                    requestAudioFocus()
                     mp.start()
                     _isPlaying.value = true
                 }
@@ -193,24 +376,17 @@ class MusicPlayerService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to pause", e)
             }
-            try {
-                stopForeground(STOP_FOREGROUND_DETACH)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not stop foreground: ${e.message}")
-            }
+            stopForegroundSafe(detach = true)
         }
     }
 
     fun stop() {
         runOnMainThread {
             releasePlayerInternal()
+            abandonAudioFocus()
             _isPlaying.value = false
             _currentTrackIndex.value = -1
-            try {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not stop foreground: ${e.message}")
-            }
+            stopForegroundSafe(detach = false)
         }
         stopSelf()
     }
@@ -245,6 +421,8 @@ class MusicPlayerService : Service() {
         _isPlaying.value = false
     }
 
+    // ── Notification ────────────────────────────────────────────
+
     private fun buildNotification(): android.app.Notification {
         val openIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -269,6 +447,7 @@ class MusicPlayerService : Service() {
 
     override fun onDestroy() {
         releasePlayerInternal()
+        abandonAudioFocus()
         super.onDestroy()
     }
 }

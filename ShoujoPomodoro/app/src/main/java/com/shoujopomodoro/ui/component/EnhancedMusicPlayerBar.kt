@@ -57,6 +57,7 @@ fun EnhancedMusicPlayerBar(
     var service by remember { mutableStateOf<MusicPlayerService?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var currentIndex by remember { mutableIntStateOf(-1) }
+    var bindAttempts by remember { mutableIntStateOf(0) }
 
     val serviceConnection = remember {
         object : android.content.ServiceConnection {
@@ -65,9 +66,10 @@ fun EnhancedMusicPlayerBar(
                 try {
                     val musicService = (binder as MusicPlayerService.MusicBinder).getService()
                     service = musicService
+                    // Sync the playlist to the service
                     musicService.setPlaylist(musicPaths)
                 } catch (e: Exception) {
-                    // Service may not be in a valid state
+                    Log.e("MusicPlayerBar", "Service connection error", e)
                     service = null
                 }
             }
@@ -78,9 +80,14 @@ fun EnhancedMusicPlayerBar(
         }
     }
 
+    // Bind to the service whenever musicPaths changes
     DisposableEffect(musicPaths) {
         val intent = Intent(context, MusicPlayerService::class.java)
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        try {
+            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        } catch (e: Exception) {
+            Log.e("MusicPlayerBar", "Failed to bind music service", e)
+        }
 
         onDispose {
             try {
@@ -91,7 +98,7 @@ fun EnhancedMusicPlayerBar(
         }
     }
 
-    // Sync local state with the service's StateFlows
+    // Sync local state with service StateFlows
     LaunchedEffect(service) {
         service?.isPlaying?.collectLatest { playing ->
             isPlaying = playing
@@ -107,6 +114,16 @@ fun EnhancedMusicPlayerBar(
             if (error != null) {
                 Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
                 service?.clearError()
+            }
+        }
+    }
+
+    // Retry binding if service not connected within a short time
+    LaunchedEffect(musicPaths, bindAttempts) {
+        if (service == null) {
+            kotlinx.coroutines.delay(500)
+            if (service == null && bindAttempts < 2) {
+                bindAttempts++
             }
         }
     }
@@ -174,7 +191,11 @@ fun EnhancedMusicPlayerBar(
 
                 IconButton(
                     onClick = {
-                        val svc = service ?: return@IconButton
+                        val svc = service
+                        if (svc == null) {
+                            Toast.makeText(context, R.string.music_service_starting, Toast.LENGTH_SHORT).show()
+                            return@IconButton
+                        }
                         if (isPlaying) {
                             svc.pause()
                         } else {
@@ -232,5 +253,12 @@ fun EnhancedMusicPlayerBar(
                 }
             }
         }
+    }
+}
+
+// Logger for UI component (avoids dependency on android.util.Log in Compose previews)
+private object Log {
+    fun e(tag: String, msg: String, tr: Throwable? = null) {
+        android.util.Log.e(tag, msg, tr)
     }
 }
