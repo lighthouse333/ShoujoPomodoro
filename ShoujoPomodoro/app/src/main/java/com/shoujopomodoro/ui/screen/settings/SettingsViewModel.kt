@@ -3,6 +3,7 @@ package com.shoujopomodoro.ui.screen.settings
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shoujopomodoro.ShoujoPomodoroApp
@@ -96,22 +97,50 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val newPaths = mutableListOf<String>()
             for (uri in uris) {
                 try {
-                    val fileName = uri.lastPathSegment ?: "track_${System.currentTimeMillis()}.mp3"
+                    // Query the real display name from the content URI
+                    var fileName = "track_${System.currentTimeMillis()}.mp3"
+                    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                            if (nameIndex >= 0) {
+                                fileName = cursor.getString(nameIndex)
+                            }
+                        }
+                    }
+
+                    // Ensure the fileName has a usable extension
+                    if (!fileName.contains(".")) {
+                        fileName += ".mp3"
+                    }
+
                     val destFile = File(musicDir, fileName)
+                    // Avoid overwriting: append number if file exists
+                    var finalDestFile = destFile
+                    var counter = 1
+                    while (finalDestFile.exists()) {
+                        val dotIndex = fileName.lastIndexOf('.')
+                        val baseName = if (dotIndex >= 0) fileName.substring(0, dotIndex) else fileName
+                        val ext = if (dotIndex >= 0) fileName.substring(dotIndex) else ".mp3"
+                        finalDestFile = File(musicDir, "${baseName}_($counter)$ext")
+                        counter++
+                    }
+
                     context.contentResolver.openInputStream(uri)?.use { input ->
-                        FileOutputStream(destFile).use { output ->
+                        FileOutputStream(finalDestFile).use { output ->
                             input.copyTo(output)
                         }
                     }
-                    newPaths.add(destFile.absolutePath)
+                    newPaths.add(finalDestFile.absolutePath)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
 
-            val currentPaths = _uiState.value.musicPaths.toMutableList()
-            currentPaths.addAll(newPaths)
-            settingsRepo.updateMusicPaths(currentPaths)
+            if (newPaths.isNotEmpty()) {
+                val currentPaths = _uiState.value.musicPaths.toMutableList()
+                currentPaths.addAll(newPaths)
+                settingsRepo.updateMusicPaths(currentPaths)
+            }
         }
     }
 

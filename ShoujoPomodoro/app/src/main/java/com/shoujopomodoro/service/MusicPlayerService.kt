@@ -6,6 +6,7 @@ import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Binder
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.shoujopomodoro.MainActivity
 import com.shoujopomodoro.R
@@ -17,6 +18,7 @@ import java.io.File
 class MusicPlayerService : Service() {
 
     companion object {
+        const val TAG = "MusicPlayerService"
         const val NOTIFICATION_ID = 200
         const val CHANNEL_ID = "music_player_channel"
         const val ACTION_STOP = "com.shoujopomodoro.action.STOP_MUSIC"
@@ -30,6 +32,9 @@ class MusicPlayerService : Service() {
 
     private val _currentTrackIndex = MutableStateFlow(-1)
     val currentTrackIndex: StateFlow<Int> = _currentTrackIndex.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private var playlist: List<String> = emptyList()
     private var onPlaybackComplete: (() -> Unit)? = null
@@ -57,46 +62,79 @@ class MusicPlayerService : Service() {
         playlist = paths
     }
 
-    fun play(index: Int) {
-        if (index < 0 || index >= playlist.size) return
-        releasePlayer()
-        val file = File(playlist[index])
-        if (!file.exists()) return
-        mediaPlayer = MediaPlayer().apply {
-            setDataSource(playlist[index])
-            prepare()
-            start()
-            _isPlaying.value = true
-            _currentTrackIndex.value = index
-            setOnCompletionListener {
-                playNext()
-            }
+    fun play(index: Int): Boolean {
+        if (index < 0 || index >= playlist.size) {
+            Log.w(TAG, "Invalid track index: $index, playlist size: ${playlist.size}")
+            return false
         }
-        startForeground(NOTIFICATION_ID, buildNotification())
+        releasePlayer()
+        val filePath = playlist[index]
+        val file = File(filePath)
+        if (!file.exists()) {
+            Log.w(TAG, "File not found: $filePath")
+            _errorMessage.value = "File not found: ${file.nameWithoutExtension}"
+            return false
+        }
+
+        return try {
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(filePath)
+                setOnPreparedListener { mp ->
+                    mp.start()
+                    _isPlaying.value = true
+                    _currentTrackIndex.value = index
+                }
+                setOnCompletionListener {
+                    playNext()
+                }
+                setOnErrorListener { _, what, extra ->
+                    Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
+                    _errorMessage.value = "Playback error (code: $what)"
+                    releasePlayer()
+                    true // error handled
+                }
+                prepareAsync() // non-blocking, safer than prepare()
+            }
+            startForeground(NOTIFICATION_ID, buildNotification())
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to play track: ${file.nameWithoutExtension}", e)
+            _errorMessage.value = "Cannot play: ${file.nameWithoutExtension}"
+            releasePlayer()
+            false
+        }
     }
 
-    fun playNext() {
-        if (playlist.isEmpty()) return
+    fun playNext(): Boolean {
+        if (playlist.isEmpty()) return false
         val nextIndex = (_currentTrackIndex.value + 1) % playlist.size
-        play(nextIndex)
+        return play(nextIndex)
     }
 
-    fun playPrevious() {
-        if (playlist.isEmpty()) return
+    fun playPrevious(): Boolean {
+        if (playlist.isEmpty()) return false
         val prevIndex = if (_currentTrackIndex.value - 1 < 0) playlist.size - 1 else _currentTrackIndex.value - 1
-        play(prevIndex)
+        return play(prevIndex)
     }
 
     fun resume() {
-        mediaPlayer?.start()
-        _isPlaying.value = true
-        startForeground(NOTIFICATION_ID, buildNotification())
+        try {
+            mediaPlayer?.start()
+            _isPlaying.value = true
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resume playback", e)
+        }
     }
 
     fun pause() {
-        mediaPlayer?.pause()
-        _isPlaying.value = false
-        stopForeground(STOP_FOREGROUND_DETACH)
+        try {
+            mediaPlayer?.pause()
+            _isPlaying.value = false
+            stopForeground(STOP_FOREGROUND_DETACH)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to pause playback", e)
+        }
     }
 
     fun stop() {
@@ -109,10 +147,22 @@ class MusicPlayerService : Service() {
 
     fun isMediaPlayerPlaying(): Boolean = mediaPlayer?.isPlaying == true
 
+    fun clearError() {
+        _errorMessage.value = null
+    }
+
     private fun releasePlayer() {
         mediaPlayer?.apply {
-            if (isPlaying) stop()
-            release()
+            try {
+                if (isPlaying) stop()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping player", e)
+            }
+            try {
+                release()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing player", e)
+            }
         }
         mediaPlayer = null
         _isPlaying.value = false
