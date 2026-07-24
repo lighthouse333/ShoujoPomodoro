@@ -61,9 +61,15 @@ fun EnhancedMusicPlayerBar(
     val serviceConnection = remember {
         object : android.content.ServiceConnection {
             override fun onServiceConnected(name: android.content.ComponentName?, binder: android.os.IBinder?) {
-                val musicService = (binder as MusicPlayerService.MusicBinder).getService()
-                service = musicService
-                musicService.setPlaylist(musicPaths)
+                if (binder == null) return
+                try {
+                    val musicService = (binder as MusicPlayerService.MusicBinder).getService()
+                    service = musicService
+                    musicService.setPlaylist(musicPaths)
+                } catch (e: Exception) {
+                    // Service may not be in a valid state
+                    service = null
+                }
             }
 
             override fun onServiceDisconnected(name: android.content.ComponentName?) {

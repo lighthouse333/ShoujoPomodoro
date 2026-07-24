@@ -43,7 +43,14 @@ class TimerPreferences(private val context: Context) {
             cyclesBeforeLongBreak = prefs[CYCLES_BEFORE_LONG_BREAK] ?: DEFAULT_CYCLES,
             language = prefs[LANGUAGE] ?: DEFAULT_LANGUAGE,
             clockPosition = prefs[CLOCK_POSITION] ?: DEFAULT_CLOCK_POSITION,
-            musicPaths = (prefs[MUSIC_PATHS] ?: "").split(",").filter { it.isNotBlank() },
+            musicPaths = (prefs[MUSIC_PATHS] ?: "").let { serialized ->
+                // New format uses \n delimiter; fall back to legacy comma-delimited
+                if (serialized.contains("\n")) {
+                    serialized.split("\n").filter { it.isNotBlank() }
+                } else {
+                    serialized.split(",").filter { it.isNotBlank() }
+                }
+            },
             currentMusicIndex = prefs[CURRENT_MUSIC_INDEX] ?: 0
         )
     }
@@ -79,7 +86,7 @@ class TimerPreferences(private val context: Context) {
     }
 
     suspend fun updateMusicPaths(paths: List<String>) {
-        context.dataStore.edit { it[MUSIC_PATHS] = paths.joinToString(",") }
+        context.dataStore.edit { it[MUSIC_PATHS] = paths.joinToString("\n") }
     }
 
     suspend fun updateCurrentMusicIndex(index: Int) {

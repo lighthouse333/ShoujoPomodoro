@@ -5,7 +5,9 @@ import android.app.Service
 import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Binder
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.shoujopomodoro.MainActivity
@@ -26,7 +28,7 @@ class MusicPlayerService : Service() {
 
     private val binder = MusicBinder()
     private var mediaPlayer: MediaPlayer? = null
-    @Volatile private var isReleased = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -38,7 +40,6 @@ class MusicPlayerService : Service() {
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     private var playlist: List<String> = emptyList()
-    private var onPlaybackComplete: (() -> Unit)? = null
 
     inner class MusicBinder : Binder() {
         fun getService(): MusicPlayerService = this@MusicPlayerService
@@ -63,12 +64,24 @@ class MusicPlayerService : Service() {
         playlist = paths
     }
 
+    /**
+     * All MediaPlayer operations MUST run on the main thread.
+     * MediaPlayer callbacks (onCompletion, onError) fire from native threads,
+     * so we always post to the main looper.
+     */
+    private fun runOnMainThread(action: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action()
+        } else {
+            mainHandler.post(action)
+        }
+    }
+
     fun play(index: Int): Boolean {
         if (index < 0 || index >= playlist.size) {
             Log.w(TAG, "Invalid track index: $index, playlist size: ${playlist.size}")
             return false
         }
-        releasePlayer()
         val filePath = playlist[index]
         val file = File(filePath)
         if (!file.exists()) {
@@ -77,44 +90,50 @@ class MusicPlayerService : Service() {
             return false
         }
 
-        // Set index synchronously so notification and playNext() see the correct value
+        // Release previous player (must be on main thread)
+        runOnMainThread { releasePlayerInternal() }
+
+        // Set index synchronously so notification sees the correct value
         _currentTrackIndex.value = index
 
         val mp = MediaPlayer()
         return try {
             mp.setDataSource(filePath)
             mp.setOnCompletionListener {
-                // Only auto-advance if this player hasn't been released
-                if (!isReleased) {
-                    playNext()
+                // Callback from native thread — post to main to avoid threading issues
+                mainHandler.post {
+                    if (mediaPlayer === mp) {
+                        playNext()
+                    }
                 }
             }
             mp.setOnErrorListener { _, what, extra ->
                 Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
                 _errorMessage.value = "Playback error (code: $what)"
-                releasePlayer()
+                // Post to main thread
+                mainHandler.post {
+                    if (mediaPlayer === mp) {
+                        releasePlayerInternal()
+                    }
+                }
                 true // error handled
             }
-            mp.prepare() // synchronous — fast for local files (<50ms)
+            mp.prepare()
             mp.start()
-            isReleased = false
             mediaPlayer = mp
             _isPlaying.value = true
 
             try {
                 startForeground(NOTIFICATION_ID, buildNotification())
             } catch (fgEx: Exception) {
-                // Android 12+ may reject startForeground if app is in background
                 Log.w(TAG, "Could not start foreground: ${fgEx.message}")
-                // Playback still works even without the notification
             }
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to play track: ${file.nameWithoutExtension}", e)
+            Log.e(TAG, "Failed to play: ${file.nameWithoutExtension}", e)
             _errorMessage.value = "Cannot play: ${file.nameWithoutExtension}"
             try { mp.reset() } catch (_: Exception) {}
             try { mp.release() } catch (_: Exception) {}
-            mediaPlayer = null
             _isPlaying.value = false
             false
         }
@@ -133,45 +152,51 @@ class MusicPlayerService : Service() {
     }
 
     fun resume() {
-        val mp = mediaPlayer ?: return
-        try {
-            if (!mp.isPlaying) {
-                mp.start()
-                _isPlaying.value = true
+        runOnMainThread {
+            val mp = mediaPlayer ?: return@runOnMainThread
+            try {
+                if (!mp.isPlaying) {
+                    mp.start()
+                    _isPlaying.value = true
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resume", e)
+                return@runOnMainThread
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to resume playback", e)
-            return
-        }
-        try {
-            startForeground(NOTIFICATION_ID, buildNotification())
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not start foreground in resume: ${e.message}")
+            try {
+                startForeground(NOTIFICATION_ID, buildNotification())
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not start foreground in resume: ${e.message}")
+            }
         }
     }
 
     fun pause() {
-        try {
-            mediaPlayer?.pause()
-            _isPlaying.value = false
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to pause playback", e)
-        }
-        try {
-            stopForeground(STOP_FOREGROUND_DETACH)
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not stop foreground in pause: ${e.message}")
+        runOnMainThread {
+            try {
+                mediaPlayer?.pause()
+                _isPlaying.value = false
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to pause", e)
+            }
+            try {
+                stopForeground(STOP_FOREGROUND_DETACH)
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not stop foreground: ${e.message}")
+            }
         }
     }
 
     fun stop() {
-        releasePlayer()
-        _isPlaying.value = false
-        _currentTrackIndex.value = -1
-        try {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not stop foreground: ${e.message}")
+        runOnMainThread {
+            releasePlayerInternal()
+            _isPlaying.value = false
+            _currentTrackIndex.value = -1
+            try {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not stop foreground: ${e.message}")
+            }
         }
         stopSelf()
     }
@@ -182,8 +207,8 @@ class MusicPlayerService : Service() {
         _errorMessage.value = null
     }
 
-    private fun releasePlayer() {
-        isReleased = true
+    /** Must be called on the main thread */
+    private fun releasePlayerInternal() {
         val mp = mediaPlayer
         mediaPlayer = null
         mp?.apply {
@@ -193,7 +218,7 @@ class MusicPlayerService : Service() {
                 Log.e(TAG, "Error stopping player", e)
             }
             try {
-                reset() // return to Idle state before release
+                reset()
             } catch (e: Exception) {
                 Log.e(TAG, "Error resetting player", e)
             }
@@ -228,12 +253,8 @@ class MusicPlayerService : Service() {
             .build()
     }
 
-    fun setOnPlaybackComplete(callback: () -> Unit) {
-        onPlaybackComplete = callback
-    }
-
     override fun onDestroy() {
-        releasePlayer()
+        releasePlayerInternal()
         super.onDestroy()
     }
 }

@@ -11,7 +11,9 @@ import com.shoujopomodoro.data.preferences.TimerSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
@@ -103,7 +105,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         if (cursor.moveToFirst()) {
                             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                             if (nameIndex >= 0) {
-                                fileName = cursor.getString(nameIndex)
+                                val displayName = cursor.getString(nameIndex)
+                                if (displayName.isNotBlank()) {
+                                    fileName = displayName
+                                }
                             }
                         }
                     }
@@ -125,12 +130,28 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         counter++
                     }
 
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        FileOutputStream(finalDestFile).use { output ->
-                            input.copyTo(output)
+                    // Copy file content on IO dispatcher
+                    val copied = withContext(Dispatchers.IO) {
+                        try {
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                FileOutputStream(finalDestFile).use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            true // file was actually copied
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            false
                         }
                     }
-                    newPaths.add(finalDestFile.absolutePath)
+
+                    // Only add the path if the file was actually copied (exists and non-empty)
+                    if (copied && finalDestFile.exists() && finalDestFile.length() > 0) {
+                        newPaths.add(finalDestFile.absolutePath)
+                    } else if (finalDestFile.exists()) {
+                        // Clean up empty file
+                        finalDestFile.delete()
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
