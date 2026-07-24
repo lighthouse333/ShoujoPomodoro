@@ -26,6 +26,7 @@ class MusicPlayerService : Service() {
 
     private val binder = MusicBinder()
     private var mediaPlayer: MediaPlayer? = null
+    @Volatile private var isReleased = false
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -76,31 +77,45 @@ class MusicPlayerService : Service() {
             return false
         }
 
+        // Set index synchronously so notification and playNext() see the correct value
+        _currentTrackIndex.value = index
+
+        val mp = MediaPlayer()
         return try {
-            mediaPlayer = MediaPlayer().apply {
-                setDataSource(filePath)
-                setOnPreparedListener { mp ->
-                    mp.start()
-                    _isPlaying.value = true
-                    _currentTrackIndex.value = index
-                }
-                setOnCompletionListener {
+            mp.setDataSource(filePath)
+            mp.setOnCompletionListener {
+                // Only auto-advance if this player hasn't been released
+                if (!isReleased) {
                     playNext()
                 }
-                setOnErrorListener { _, what, extra ->
-                    Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
-                    _errorMessage.value = "Playback error (code: $what)"
-                    releasePlayer()
-                    true // error handled
-                }
-                prepareAsync() // non-blocking, safer than prepare()
             }
-            startForeground(NOTIFICATION_ID, buildNotification())
+            mp.setOnErrorListener { _, what, extra ->
+                Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
+                _errorMessage.value = "Playback error (code: $what)"
+                releasePlayer()
+                true // error handled
+            }
+            mp.prepare() // synchronous — fast for local files (<50ms)
+            mp.start()
+            isReleased = false
+            mediaPlayer = mp
+            _isPlaying.value = true
+
+            try {
+                startForeground(NOTIFICATION_ID, buildNotification())
+            } catch (fgEx: Exception) {
+                // Android 12+ may reject startForeground if app is in background
+                Log.w(TAG, "Could not start foreground: ${fgEx.message}")
+                // Playback still works even without the notification
+            }
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to play track: ${file.nameWithoutExtension}", e)
             _errorMessage.value = "Cannot play: ${file.nameWithoutExtension}"
-            releasePlayer()
+            try { mp.reset() } catch (_: Exception) {}
+            try { mp.release() } catch (_: Exception) {}
+            mediaPlayer = null
+            _isPlaying.value = false
             false
         }
     }
@@ -118,12 +133,20 @@ class MusicPlayerService : Service() {
     }
 
     fun resume() {
+        val mp = mediaPlayer ?: return
         try {
-            mediaPlayer?.start()
-            _isPlaying.value = true
-            startForeground(NOTIFICATION_ID, buildNotification())
+            if (!mp.isPlaying) {
+                mp.start()
+                _isPlaying.value = true
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to resume playback", e)
+            return
+        }
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not start foreground in resume: ${e.message}")
         }
     }
 
@@ -131,9 +154,13 @@ class MusicPlayerService : Service() {
         try {
             mediaPlayer?.pause()
             _isPlaying.value = false
-            stopForeground(STOP_FOREGROUND_DETACH)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to pause playback", e)
+        }
+        try {
+            stopForeground(STOP_FOREGROUND_DETACH)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not stop foreground in pause: ${e.message}")
         }
     }
 
@@ -141,7 +168,11 @@ class MusicPlayerService : Service() {
         releasePlayer()
         _isPlaying.value = false
         _currentTrackIndex.value = -1
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not stop foreground: ${e.message}")
+        }
         stopSelf()
     }
 
@@ -152,11 +183,19 @@ class MusicPlayerService : Service() {
     }
 
     private fun releasePlayer() {
-        mediaPlayer?.apply {
+        isReleased = true
+        val mp = mediaPlayer
+        mediaPlayer = null
+        mp?.apply {
             try {
                 if (isPlaying) stop()
             } catch (e: Exception) {
                 Log.e(TAG, "Error stopping player", e)
+            }
+            try {
+                reset() // return to Idle state before release
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resetting player", e)
             }
             try {
                 release()
@@ -164,7 +203,6 @@ class MusicPlayerService : Service() {
                 Log.e(TAG, "Error releasing player", e)
             }
         }
-        mediaPlayer = null
         _isPlaying.value = false
     }
 
