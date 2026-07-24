@@ -3,8 +3,10 @@ package com.shoujopomodoro.service
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.media.MediaPlayer
 import android.os.Binder
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -62,6 +64,26 @@ class MusicPlayerService : Service() {
 
     fun setPlaylist(paths: List<String>) {
         playlist = paths
+    }
+
+    /**
+     * Safe foreground start — uses the 3-parameter version on Android 14+
+     * which requires explicit foregroundServiceType since API 34.
+     */
+    private fun startForegroundSafe(notification: android.app.Notification) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not start foreground: ${e.message}")
+        }
     }
 
     /**
@@ -123,11 +145,7 @@ class MusicPlayerService : Service() {
             mediaPlayer = mp
             _isPlaying.value = true
 
-            try {
-                startForeground(NOTIFICATION_ID, buildNotification())
-            } catch (fgEx: Exception) {
-                Log.w(TAG, "Could not start foreground: ${fgEx.message}")
-            }
+            startForegroundSafe(buildNotification())
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to play: ${file.nameWithoutExtension}", e)
@@ -163,11 +181,7 @@ class MusicPlayerService : Service() {
                 Log.e(TAG, "Failed to resume", e)
                 return@runOnMainThread
             }
-            try {
-                startForeground(NOTIFICATION_ID, buildNotification())
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not start foreground in resume: ${e.message}")
-            }
+            startForegroundSafe(buildNotification())
         }
     }
 
