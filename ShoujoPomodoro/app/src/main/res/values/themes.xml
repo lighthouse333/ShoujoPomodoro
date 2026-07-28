@@ -4,4 +4,10 @@
         <item name="android:statusBarColor">@color/pink_primary</item>
         <item name="android:navigationBarColor">@color/white</item>
     </style>
+
+    <style name="Theme.ShoujoPomodoro.Splash" parent="Theme.ShoujoPomodoro">
+        <item name="android:windowBackground">@drawable/splash_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>
