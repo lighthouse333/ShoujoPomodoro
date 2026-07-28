@@ -43,6 +43,7 @@
     <string name="music_prev">Previous</string>
     <string name="music_imported">Imported Music</string>
     <string name="music_empty">No music imported yet</string>
+    <string name="music_service_starting">Music service is starting…</string>
     <string name="clock_position">Clock Position</string>
     <string name="clock_position_top_bar">Top Bar</string>
     <string name="clock_position_center">Center (above timer)</string>

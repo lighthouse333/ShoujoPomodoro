@@ -2,16 +2,15 @@ package com.shoujopomodoro.ui.component
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
@@ -27,7 +26,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shoujopomodoro.R
 import com.shoujopomodoro.service.MusicPlayerService
+import kotlinx.coroutines.flow.collectLatest
 import java.io.File
 
 @Composable
@@ -52,16 +54,24 @@ fun EnhancedMusicPlayerBar(
     if (musicPaths.isEmpty()) return
 
     val context = LocalContext.current
-    var isPlaying by remember { mutableStateOf(false) }
-    var currentIndex by remember { mutableStateOf(0) }
     var service by remember { mutableStateOf<MusicPlayerService?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var currentIndex by remember { mutableIntStateOf(-1) }
+    var bindAttempts by remember { mutableIntStateOf(0) }
 
     val serviceConnection = remember {
         object : android.content.ServiceConnection {
             override fun onServiceConnected(name: android.content.ComponentName?, binder: android.os.IBinder?) {
-                val musicService = (binder as MusicPlayerService.MusicBinder).getService()
-                service = musicService
-                musicService.setPlaylist(musicPaths)
+                if (binder == null) return
+                try {
+                    val musicService = (binder as MusicPlayerService.MusicBinder).getService()
+                    service = musicService
+                    // Sync the playlist to the service
+                    musicService.setPlaylist(musicPaths)
+                } catch (e: Exception) {
+                    Log.e("MusicPlayerBar", "Service connection error", e)
+                    service = null
+                }
             }
 
             override fun onServiceDisconnected(name: android.content.ComponentName?) {
@@ -70,15 +80,50 @@ fun EnhancedMusicPlayerBar(
         }
     }
 
+    // Bind to the service whenever musicPaths changes
     DisposableEffect(musicPaths) {
         val intent = Intent(context, MusicPlayerService::class.java)
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        try {
+            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        } catch (e: Exception) {
+            Log.e("MusicPlayerBar", "Failed to bind music service", e)
+        }
 
         onDispose {
             try {
                 context.unbindService(serviceConnection)
             } catch (e: Exception) {
                 // Service may already be unbound
+            }
+        }
+    }
+
+    // Sync local state with service StateFlows
+    LaunchedEffect(service) {
+        service?.isPlaying?.collectLatest { playing ->
+            isPlaying = playing
+        }
+    }
+    LaunchedEffect(service) {
+        service?.currentTrackIndex?.collectLatest { index ->
+            currentIndex = index
+        }
+    }
+    LaunchedEffect(service) {
+        service?.errorMessage?.collectLatest { error ->
+            if (error != null) {
+                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                service?.clearError()
+            }
+        }
+    }
+
+    // Retry binding if service not connected within a short time
+    LaunchedEffect(musicPaths, bindAttempts) {
+        if (service == null) {
+            kotlinx.coroutines.delay(500)
+            if (service == null && bindAttempts < 2) {
+                bindAttempts++
             }
         }
     }
@@ -114,7 +159,7 @@ fun EnhancedMusicPlayerBar(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp).padding(end = 8.dp)
                 )
-                
+
                 Text(
                     text = currentTrackName.ifBlank {
                         stringResource(R.string.no_music_playing)
@@ -133,11 +178,7 @@ fun EnhancedMusicPlayerBar(
                 modifier = Modifier.height(40.dp)
             ) {
                 IconButton(
-                    onClick = {
-                        service?.playPrevious()
-                        currentIndex = service?.currentTrackIndex?.value ?: currentIndex
-                        isPlaying = true
-                    },
+                    onClick = { service?.playPrevious() },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -150,16 +191,21 @@ fun EnhancedMusicPlayerBar(
 
                 IconButton(
                     onClick = {
+                        val svc = service
+                        if (svc == null) {
+                            Toast.makeText(context, R.string.music_service_starting, Toast.LENGTH_SHORT).show()
+                            return@IconButton
+                        }
                         if (isPlaying) {
-                            service?.pause()
-                            isPlaying = false
+                            svc.pause()
                         } else {
-                            if (service?.isMediaPlayerPlaying() == false) {
-                                service?.play(currentIndex)
+                            if (svc.isMediaPlayerPlaying().not()) {
+                                // Start playing from the first track if nothing is loaded
+                                val idx = if (currentIndex >= 0) currentIndex else 0
+                                svc.play(idx)
                             } else {
-                                service?.resume()
+                                svc.resume()
                             }
-                            isPlaying = true
                         }
                     },
                     modifier = Modifier.size(44.dp)
@@ -183,11 +229,7 @@ fun EnhancedMusicPlayerBar(
                 }
 
                 IconButton(
-                    onClick = {
-                        service?.playNext()
-                        currentIndex = service?.currentTrackIndex?.value ?: currentIndex
-                        isPlaying = true
-                    },
+                    onClick = { service?.playNext() },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -199,10 +241,7 @@ fun EnhancedMusicPlayerBar(
                 }
 
                 IconButton(
-                    onClick = {
-                        service?.stop()
-                        isPlaying = false
-                    },
+                    onClick = { service?.stop() },
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -214,5 +253,12 @@ fun EnhancedMusicPlayerBar(
                 }
             }
         }
+    }
+}
+
+// Logger for UI component (avoids dependency on android.util.Log in Compose previews)
+private object Log {
+    fun e(tag: String, msg: String, tr: Throwable? = null) {
+        android.util.Log.e(tag, msg, tr)
     }
 }

@@ -43,6 +43,7 @@
     <string name="music_prev">上一首</string>
     <string name="music_imported">已导入音乐</string>
     <string name="music_empty">尚未导入音乐</string>
+    <string name="music_service_starting">音乐服务启动中…</string>
     <string name="clock_position">时钟位置</string>
     <string name="clock_position_top_bar">顶部栏</string>
     <string name="clock_position_center">中央（计时上方）</string>
