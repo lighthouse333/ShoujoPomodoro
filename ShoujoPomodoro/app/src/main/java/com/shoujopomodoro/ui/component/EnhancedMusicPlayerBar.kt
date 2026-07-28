@@ -5,12 +5,29 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
@@ -22,6 +39,8 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +57,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shoujopomodoro.R
@@ -57,6 +75,8 @@ fun EnhancedMusicPlayerBar(
     var service by remember { mutableStateOf<MusicPlayerService?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var currentIndex by remember { mutableIntStateOf(-1) }
+    var volumePercent by remember { mutableIntStateOf(50) }
+    var showVolumeSlider by remember { mutableStateOf(false) }
     var bindAttempts by remember { mutableIntStateOf(0) }
 
     val serviceConnection = remember {
@@ -68,6 +88,8 @@ fun EnhancedMusicPlayerBar(
                     service = musicService
                     // Sync the playlist to the service
                     musicService.setPlaylist(musicPaths)
+                    // Sync volume with system
+                    musicService.refreshVolume()
                 } catch (e: Exception) {
                     Log.e("MusicPlayerBar", "Service connection error", e)
                     service = null
@@ -117,6 +139,11 @@ fun EnhancedMusicPlayerBar(
             }
         }
     }
+    LaunchedEffect(service) {
+        service?.volumePercent?.collectLatest { vol ->
+            volumePercent = vol
+        }
+    }
 
     // Retry binding if service not connected within a short time
     LaunchedEffect(musicPaths, bindAttempts) {
@@ -138,117 +165,198 @@ fun EnhancedMusicPlayerBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .height(56.dp)
             .clip(CircleShape),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
         shape = CircleShape
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            // Left side - Track info with icon
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp).padding(end = 8.dp)
-                )
-
-                Text(
-                    text = currentTrackName.ifBlank {
-                        stringResource(R.string.no_music_playing)
-                    },
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                // Left side - Track info with icon
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Right side - Controls
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.height(40.dp)
-            ) {
-                IconButton(
-                    onClick = { service?.playPrevious() },
-                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
-                        Icons.Default.SkipPrevious,
-                        contentDescription = stringResource(R.string.music_prev),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp).padding(end = 8.dp)
                     )
-                }
 
-                IconButton(
-                    onClick = {
-                        val svc = service
-                        if (svc == null) {
-                            Toast.makeText(context, R.string.music_service_starting, Toast.LENGTH_SHORT).show()
-                            return@IconButton
-                        }
-                        if (isPlaying) {
-                            svc.pause()
-                        } else {
-                            if (svc.isMediaPlayerPlaying().not()) {
-                                // Start playing from the first track if nothing is loaded
-                                val idx = if (currentIndex >= 0) currentIndex else 0
-                                svc.play(idx)
-                            } else {
-                                svc.resume()
-                            }
-                        }
-                    },
-                    modifier = Modifier.size(44.dp)
-                ) {
+                    val textWidth = remember { mutableIntStateOf(0) }
+                    val containerWidth = remember { mutableIntStateOf(0) }
+                    val shouldMarquee =
+                        currentTrackName.isNotBlank() && textWidth.intValue > containerWidth.intValue
+
+                    val infiniteTransition = rememberInfiniteTransition()
+                    val scrollOffset by infiniteTransition.animateFloat(
+                        initialValue = if (shouldMarquee) containerWidth.intValue.toFloat() else 0f,
+                        targetValue = if (shouldMarquee) -textWidth.intValue.toFloat() else 0f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(
+                                durationMillis = ((textWidth.intValue + containerWidth.intValue) * 30)
+                                    .coerceAtLeast(3000),
+                                easing = LinearEasing
+                            ),
+                            repeatMode = RepeatMode.Restart
+                        )
+                    )
+
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                            .padding(4.dp)
+                            .weight(1f)
+                            .onSizeChanged { containerWidth.intValue = it.width }
                     ) {
-                        Icon(
-                            if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying)
-                                stringResource(R.string.music_pause)
-                            else
-                                stringResource(R.string.music_play),
-                            modifier = Modifier.size(24.dp),
-                            tint = Color.White
+                        Text(
+                            text = currentTrackName.ifBlank {
+                                stringResource(R.string.no_music_playing)
+                            },
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier
+                                .onSizeChanged { textWidth.intValue = it.width }
+                                .offset { IntOffset(scrollOffset.toInt(), 0) }
                         )
                     }
                 }
 
-                IconButton(
-                    onClick = { service?.playNext() },
-                    modifier = Modifier.size(36.dp)
+                // Right side - Controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.height(40.dp)
                 ) {
-                    Icon(
-                        Icons.Default.SkipNext,
-                        contentDescription = stringResource(R.string.music_next),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                    IconButton(
+                        onClick = { service?.playPrevious() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.SkipPrevious,
+                            contentDescription = stringResource(R.string.music_prev),
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
-                IconButton(
-                    onClick = { service?.stop() },
-                    modifier = Modifier.size(36.dp)
+                    IconButton(
+                        onClick = {
+                            val svc = service
+                            if (svc == null) {
+                                Toast.makeText(context, R.string.music_service_starting, Toast.LENGTH_SHORT).show()
+                                return@IconButton
+                            }
+                            if (isPlaying) {
+                                svc.pause()
+                            } else {
+                                if (svc.isMediaPlayerPlaying().not()) {
+                                    // Start playing from the first track if nothing is loaded
+                                    val idx = if (currentIndex >= 0) currentIndex else 0
+                                    svc.play(idx)
+                                } else {
+                                    svc.resume()
+                                }
+                            }
+                        },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                .padding(4.dp)
+                        ) {
+                            Icon(
+                                if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying)
+                                    stringResource(R.string.music_pause)
+                                else
+                                    stringResource(R.string.music_play),
+                                modifier = Modifier.size(24.dp),
+                                tint = Color.White
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { service?.playNext() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.SkipNext,
+                            contentDescription = stringResource(R.string.music_next),
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { service?.stop() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Stop,
+                            contentDescription = stringResource(R.string.music_stop),
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { showVolumeSlider = !showVolumeSlider },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Text(
+                            text = "🔊",
+                            fontSize = 16.sp,
+                            color = if (showVolumeSlider) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Volume slider (hidden by default, shown on icon tap)
+            AnimatedVisibility(
+                visible = showVolumeSlider,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(28.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.Stop,
-                        contentDescription = stringResource(R.string.music_stop),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.error
+                    Text(
+                        text = "🔊",
+                        fontSize = 12.sp
+                    )
+                    Slider(
+                        value = volumePercent.toFloat(),
+                        onValueChange = { service?.setVolumePercent(it.toInt()) },
+                        valueRange = 0f..100f,
+                        steps = 99,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 6.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    )
+                    Text(
+                        text = "${volumePercent}%",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(36.dp)
                     )
                 }
             }

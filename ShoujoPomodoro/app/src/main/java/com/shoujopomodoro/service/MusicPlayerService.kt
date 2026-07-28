@@ -50,6 +50,9 @@ class MusicPlayerService : Service() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _volumePercent = MutableStateFlow(50)
+    val volumePercent: StateFlow<Int> = _volumePercent.asStateFlow()
+
     private var playlist: List<String> = emptyList()
 
     inner class MusicBinder : Binder() {
@@ -241,6 +244,9 @@ class MusicPlayerService : Service() {
         var result = false
         ensureMainThread {
             result = playOnMainThread(file)
+            if (result) {
+                _currentTrackIndex.value = index
+            }
         }
         return result
     }
@@ -395,6 +401,24 @@ class MusicPlayerService : Service() {
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    // ── Volume Control ─────────────────────────────────────────
+
+    fun refreshVolume() {
+        val am = audioManager ?: return
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val current = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+        _volumePercent.value = if (max > 0) (current * 100 / max) else 50
+    }
+
+    fun setVolumePercent(percent: Int) {
+        val am = audioManager ?: return
+        val clamped = percent.coerceIn(0, 100)
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val target = (clamped * max / 100).coerceAtMost(max)
+        am.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
+        _volumePercent.value = clamped
     }
 
     /** Must be called on the main thread */

@@ -34,12 +34,16 @@ class MainActivity : ComponentActivity() {
         setTheme(R.style.Theme_ShoujoPomodoro)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            var showSplash by remember { mutableStateOf(true) }
+        val isFirstLaunch = savedInstanceState == null
 
-            LaunchedEffect(Unit) {
-                delay(10_000L)
-                showSplash = false
+        setContent {
+            var showSplash by remember { mutableStateOf(isFirstLaunch) }
+
+            if (isFirstLaunch) {
+                LaunchedEffect(Unit) {
+                    delay(5_000L)
+                    showSplash = false
+                }
             }
 
             ShoujoPomodoroTheme {

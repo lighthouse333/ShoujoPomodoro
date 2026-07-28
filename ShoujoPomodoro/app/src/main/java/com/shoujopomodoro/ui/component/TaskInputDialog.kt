@@ -16,7 +16,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.shoujopomodoro.R
 
 @Composable
 fun TaskInputDialog(
@@ -27,18 +29,18 @@ fun TaskInputDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Task") },
+        title = { Text(stringResource(R.string.task_dialog_title)) },
         text = {
             Column {
                 Text(
-                    text = "What do you want to focus on?",
+                    text = stringResource(R.string.task_dialog_description),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = taskName,
                     onValueChange = { taskName = it },
-                    placeholder = { Text("e.g., Study math, Write report...") },
+                    placeholder = { Text(stringResource(R.string.task_dialog_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -49,12 +51,12 @@ fun TaskInputDialog(
                 onClick = { if (taskName.isNotBlank()) onConfirm(taskName.trim()) },
                 enabled = taskName.isNotBlank()
             ) {
-                Text("Add")
+                Text(stringResource(R.string.task_dialog_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.task_dialog_cancel))
             }
         }
     )

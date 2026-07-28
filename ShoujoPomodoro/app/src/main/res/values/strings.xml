@@ -47,4 +47,9 @@
     <string name="clock_position">Clock Position</string>
     <string name="clock_position_top_bar">Top Bar</string>
     <string name="clock_position_center">Center (above timer)</string>
+    <string name="task_dialog_title">Add Task</string>
+    <string name="task_dialog_description">What do you want to focus on?</string>
+    <string name="task_dialog_placeholder">e.g., Study math, Write report…</string>
+    <string name="task_dialog_confirm">Add</string>
+    <string name="task_dialog_cancel">Cancel</string>
 </resources>

@@ -47,4 +47,9 @@
     <string name="clock_position">时钟位置</string>
     <string name="clock_position_top_bar">顶部栏</string>
     <string name="clock_position_center">中央（计时上方）</string>
+    <string name="task_dialog_title">添加任务</string>
+    <string name="task_dialog_description">你想专注做什么？</string>
+    <string name="task_dialog_placeholder">例如：学数学、写报告…</string>
+    <string name="task_dialog_confirm">添加</string>
+    <string name="task_dialog_cancel">取消</string>
 </resources>

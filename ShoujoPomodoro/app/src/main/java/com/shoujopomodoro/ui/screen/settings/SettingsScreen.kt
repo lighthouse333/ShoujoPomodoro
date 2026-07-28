@@ -149,7 +149,7 @@ fun SettingsScreen(
                 SettingsSlider(
                     label = stringResource(R.string.focus_duration),
                     value = uiState.focusMinutes,
-                    valueRange = 5f..60f, steps = 10,
+                    valueRange = 5f..60f, steps = 54,
                     unit = stringResource(R.string.focus_duration_unit),
                     onValueChange = { viewModel.updateFocus(it.toInt()) },
                     activeColor = SakuraDeep
@@ -169,7 +169,7 @@ fun SettingsScreen(
                 SettingsSlider(
                     label = stringResource(R.string.long_break_duration),
                     value = uiState.longBreakMinutes,
-                    valueRange = 5f..30f, steps = 4,
+                    valueRange = 5f..30f, steps = 24,
                     unit = stringResource(R.string.long_break_unit),
                     onValueChange = { viewModel.updateLongBreak(it.toInt()) },
                     activeColor = SkyBlue
@@ -218,7 +218,12 @@ fun SettingsScreen(
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         uiState.musicPaths.forEach { path ->
-                            MusicTrackCard(path = path, onRemove = { viewModel.removeMusic(path) })
+                            val isDefault = path.endsWith("To be Continued - Lofi.mp4")
+                            MusicTrackCard(
+                                path = path,
+                                isDefault = isDefault,
+                                onRemove = { viewModel.removeMusic(path) }
+                            )
                         }
                     }
                 }
@@ -336,7 +341,7 @@ private fun SettingsSlider(
 }
 
 @Composable
-private fun MusicTrackCard(path: String, onRemove: () -> Unit) {
+private fun MusicTrackCard(path: String, isDefault: Boolean = false, onRemove: () -> Unit) {
     val isDark = isSystemInDarkTheme()
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -357,8 +362,15 @@ private fun MusicTrackCard(path: String, onRemove: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
             )
-            IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_task), tint = CoralRose.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
+            if (isDefault) {
+                Text(
+                    text = "🎵",
+                    fontSize = 14.sp
+                )
+            } else {
+                IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_task), tint = CoralRose.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
+                }
             }
         }
     }
