@@ -38,6 +38,10 @@ class TimerSettingsRepositoryImpl(
         preferences.updateMusicPaths(paths)
     }
 
+    override suspend fun updateBuiltInMusicPaths(paths: List<String>) {
+        preferences.updateBuiltInMusicPaths(paths)
+    }
+
     override suspend fun updateCurrentMusicIndex(index: Int) {
         preferences.updateCurrentMusicIndex(index)
     }

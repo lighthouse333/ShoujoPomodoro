@@ -25,6 +25,7 @@ class TimerPreferences(private val context: Context) {
         val LANGUAGE = stringPreferencesKey("app_language")
         val CLOCK_POSITION = stringPreferencesKey("clock_position")
         val MUSIC_PATHS = stringPreferencesKey("music_paths")
+        val BUILT_IN_MUSIC_PATHS = stringPreferencesKey("built_in_music_paths")
         val CURRENT_MUSIC_INDEX = intPreferencesKey("current_music_index")
 
         const val DEFAULT_FOCUS = 25
@@ -45,6 +46,13 @@ class TimerPreferences(private val context: Context) {
             clockPosition = prefs[CLOCK_POSITION] ?: DEFAULT_CLOCK_POSITION,
             musicPaths = (prefs[MUSIC_PATHS] ?: "").let { serialized ->
                 // New format uses \n delimiter; fall back to legacy comma-delimited
+                if (serialized.contains("\n")) {
+                    serialized.split("\n").filter { it.isNotBlank() }
+                } else {
+                    serialized.split(",").filter { it.isNotBlank() }
+                }
+            },
+            builtInMusicPaths = (prefs[BUILT_IN_MUSIC_PATHS] ?: "").let { serialized ->
                 if (serialized.contains("\n")) {
                     serialized.split("\n").filter { it.isNotBlank() }
                 } else {
@@ -89,6 +97,10 @@ class TimerPreferences(private val context: Context) {
         context.dataStore.edit { it[MUSIC_PATHS] = paths.joinToString("\n") }
     }
 
+    suspend fun updateBuiltInMusicPaths(paths: List<String>) {
+        context.dataStore.edit { it[BUILT_IN_MUSIC_PATHS] = paths.joinToString("\n") }
+    }
+
     suspend fun updateCurrentMusicIndex(index: Int) {
         context.dataStore.edit { it[CURRENT_MUSIC_INDEX] = index }
     }
@@ -102,5 +114,6 @@ data class TimerSettings(
     val language: String = "en",
     val clockPosition: String = "top_bar",
     val musicPaths: List<String> = emptyList(),
+    val builtInMusicPaths: List<String> = emptyList(),
     val currentMusicIndex: Int = 0
 )

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -61,6 +62,7 @@ import java.util.Locale
 fun TimerScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToTasks: () -> Unit,
+    onNavigateToStats: () -> Unit = {},
     viewModel: TimerViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -119,6 +121,9 @@ fun TimerScreen(
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(end = 4.dp)
                         )
+                    }
+                    IconButton(onClick = onNavigateToStats) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Focus Stats")
                     }
                     IconButton(onClick = onNavigateToTasks) {
                         Icon(Icons.Default.Checklist, contentDescription = stringResource(R.string.tasks))

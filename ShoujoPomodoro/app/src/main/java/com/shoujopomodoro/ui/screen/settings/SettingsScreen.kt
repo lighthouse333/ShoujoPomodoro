@@ -218,7 +218,7 @@ fun SettingsScreen(
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                         uiState.musicPaths.forEach { path ->
-                            val isDefault = path.endsWith("To be Continued - Lofi.mp4")
+                            val isDefault = uiState.builtInMusicPaths.contains(path)
                             MusicTrackCard(
                                 path = path,
                                 isDefault = isDefault,

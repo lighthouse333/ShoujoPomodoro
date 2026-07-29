@@ -3,6 +3,7 @@ package com.shoujopomodoro.di
 import android.content.Context
 import com.shoujopomodoro.data.local.AppDatabase
 import com.shoujopomodoro.data.preferences.TimerPreferences
+import com.shoujopomodoro.data.repository.FocusSessionRepositoryImpl
 import com.shoujopomodoro.data.repository.TaskRepositoryImpl
 import com.shoujopomodoro.data.repository.TimerSettingsRepositoryImpl
 import com.shoujopomodoro.domain.usecase.PomodoroCycleUseCase
@@ -18,6 +19,7 @@ class AppContainer(context: Context) {
     // Repositories
     val taskRepository = TaskRepositoryImpl(database.taskDao())
     val timerSettingsRepository = TimerSettingsRepositoryImpl(timerPreferences)
+    val focusSessionRepository = FocusSessionRepositoryImpl(database.focusSessionDao())
 
     // Use cases
     val pomodoroCycleUseCase = PomodoroCycleUseCase()

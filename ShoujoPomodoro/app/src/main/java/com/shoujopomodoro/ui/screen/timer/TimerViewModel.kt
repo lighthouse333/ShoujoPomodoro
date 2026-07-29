@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.shoujopomodoro.ShoujoPomodoroApp
+import com.shoujopomodoro.data.local.entity.FocusSessionEntity
 import com.shoujopomodoro.data.preferences.TimerSettings
 import com.shoujopomodoro.domain.model.CharacterState
 import com.shoujopomodoro.domain.model.TimerPhase
@@ -16,6 +17,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class TimerUiState(
     val timeText: String = "25:00",
@@ -37,9 +41,13 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     private val stateHolder = container.timerStateHolder
     private val settingsRepo = container.timerSettingsRepository
     private val notificationHelper = container.notificationHelper
+    private val focusSessionRepo = container.focusSessionRepository
 
     private val _uiState = MutableStateFlow(TimerUiState())
     val uiState: StateFlow<TimerUiState> = _uiState.asStateFlow()
+
+    // Track previous character state to detect session completions
+    private var prevCharacterState: CharacterState = CharacterState.IDLE
 
     init {
         // Observe timer session + settings
@@ -62,6 +70,25 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 } else if (!state.isRunning && state.characterState != CharacterState.ALERTING) {
                     notificationHelper.cancelTimerNotification()
                 }
+            }
+        }
+
+        // Track focus session completions
+        viewModelScope.launch {
+            stateHolder.session.collect { session ->
+                // Detect transition to ALERTING state
+                if (prevCharacterState != CharacterState.ALERTING
+                    && session.characterState == CharacterState.ALERTING
+                    && session.phase == TimerPhase.FOCUS
+                ) {
+                    // A focus session just completed — persist it
+                    val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                    focusSessionRepo.recordSession(
+                        date = dateStr,
+                        durationMs = session.totalDurationMs
+                    )
+                }
+                prevCharacterState = session.characterState
             }
         }
 

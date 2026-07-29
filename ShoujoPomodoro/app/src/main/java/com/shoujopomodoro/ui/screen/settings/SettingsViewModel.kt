@@ -24,7 +24,8 @@ data class SettingsUiState(
     val cyclesBeforeLongBreak: Int = 4,
     val language: String = "en",
     val clockPosition: String = "top_bar",
-    val musicPaths: List<String> = emptyList()
+    val musicPaths: List<String> = emptyList(),
+    val builtInMusicPaths: List<String> = emptyList()
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,9 +39,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     // Callback that the Activity sets to trigger a recreate for hot locale switching
     var onLanguageChanged: (() -> Unit)? = null
 
+    private var migrationDone = false
+
     init {
         viewModelScope.launch {
             settingsRepo.settingsFlow.collect { settings ->
+                // One-time migration: mark all existing music as built-in (non-deletable)
+                if (!migrationDone && settings.builtInMusicPaths.isEmpty() && settings.musicPaths.isNotEmpty()) {
+                    settingsRepo.updateBuiltInMusicPaths(settings.musicPaths)
+                    migrationDone = true
+                }
+
                 _uiState.value = SettingsUiState(
                     focusMinutes = settings.focusDurationMinutes,
                     shortBreakMinutes = settings.shortBreakMinutes,
@@ -48,7 +57,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     cyclesBeforeLongBreak = settings.cyclesBeforeLongBreak,
                     language = settings.language,
                     clockPosition = settings.clockPosition,
-                    musicPaths = settings.musicPaths
+                    musicPaths = settings.musicPaths,
+                    builtInMusicPaths = if (!migrationDone && settings.builtInMusicPaths.isEmpty() && settings.musicPaths.isNotEmpty()) {
+                        settings.musicPaths
+                    } else {
+                        settings.builtInMusicPaths
+                    }
                 )
             }
         }
@@ -166,6 +180,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun removeMusic(path: String) {
+        // Guard: built-in music files cannot be deleted
+        if (_uiState.value.builtInMusicPaths.contains(path)) return
         viewModelScope.launch {
             val currentPaths = _uiState.value.musicPaths.toMutableList()
             currentPaths.remove(path)

@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.shoujopomodoro.MainActivity
 import com.shoujopomodoro.ui.screen.settings.SettingsScreen
+import com.shoujopomodoro.ui.screen.stats.StatsScreen
 import com.shoujopomodoro.ui.screen.tasklist.TaskListScreen
 import com.shoujopomodoro.ui.screen.timer.TimerScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,12 +29,23 @@ fun NavGraph(
                 },
                 onNavigateToTasks = {
                     navController.navigate(Screen.TaskList.route)
+                },
+                onNavigateToStats = {
+                    navController.navigate(Screen.Stats.route)
                 }
             )
         }
 
         composable(Screen.TaskList.route) {
             TaskListScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Screen.Stats.route) {
+            StatsScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
