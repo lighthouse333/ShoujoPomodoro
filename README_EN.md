@@ -23,13 +23,13 @@ Built with Jetpack Compose & Material 3 · Premium Visual Experience
 
 <div align="center">
 
-| Timer Main | Running | Task List |
+| Timer Main | Running | Focus Stats |
 |:---:|:---:|:---:|
-| ![Timer](screenshots/01_timer_main.png) | ![Running](screenshots/02_timer_running.png) | ![Tasks](screenshots/04_task_list.png) |
+| ![Timer](screenshots/01_timer_main.png) | ![Running](screenshots/02_timer_running.png) | ![Stats](screenshots/06_stats.png) |
 
-| Settings | English Mode |
-|:---:|:---:|
-| ![Settings](screenshots/03_settings.png) | ![English](screenshots/05_timer_en.png) |
+| Task List | Settings | English Mode |
+|:---:|:---:|:---:|
+| ![Tasks](screenshots/04_task_list.png) | ![Settings](screenshots/03_settings.png) | ![English](screenshots/05_timer_en.png) |
 
 </div>
 
@@ -45,14 +45,14 @@ The app has received a complete visual transformation — from a simple timer to
 |---------|-------------|
 | **Sakura Particle System** | Cherry blossom petals, sparkles, light motes, and hearts drift across the screen in real-time. Supports 4 particle types with physics-based motion ✨ |
 | **AGSL Shader Backgrounds** | GPU-accelerated gradient backgrounds — aurora waves, soft pastel gradients, and starry night skies. Smooth animated color transitions at 60fps |
-| **Celebration Effects** | 5 celebration styles on pomodoro completion: Confetti burst, Golden star shower, Sakura storm, Heart explosion, and Magic sparkle transformation 🎉 |
+| **Celebration Effects** | 5 celebration styles on pomodoro completion: Confetti burst, Golden star shower, Sakura storm, Heart explosion, and Magic sparkle 🎉 |
 | **Glassmorphism UI** | Semi-transparent frosted glass panels for timer display, music bar, and cards with soft blur and shadows |
 
-### 👧 Enhanced Character System
+### 👧 Character System
 
 | Feature | Description |
 |---------|-------------|
-| **4 Outfits** | Sailor uniform (focus), Pastel dress (short break), Magical girl (long break), Winter coat (seasonal) |
+| **3 Outfits** | Sailor uniform (focus), Pastel dress (short break), Magical girl (long break) |
 | **3 Hairstyles** | Twin tails, Long straight, Short bob — each with independent sway animations |
 | **Rich Expressions** | Multi-layer eyes with highlights, dynamic blush intensity, state-based mouth shapes, eyebrow movement |
 | **Glow Aura** | Pulsing colored aura around the character that changes with timer state |
@@ -63,10 +63,9 @@ The app has received a complete visual transformation — from a simple timer to
 | Feature | Description |
 |---------|-------------|
 | **Multi-layer Glow** | Progress arc with inner and outer glow rings in phase-specific colors |
-| **Orbiting Particles** | Sparkles orbit around the timer ring with physics-based motion |
+| **Orbiting Particles** | Sparkles orbit around the timer ring |
 | **Star Progress Markers** | 4 star markers at 0%, 25%, 50%, 75% that light up as progress advances |
 | **Glow Tip Dot** | A bright glowing dot at the leading edge of the progress arc |
-| **Gradient Sweep** | Smooth gradient coloring along the progress arc |
 
 ### 🎛️ Premium Controls
 
@@ -83,9 +82,12 @@ The app has received a complete visual transformation — from a simple timer to
 - Standard Pomodoro cycle: Focus (25min) → Short Break (5min) → Focus → Long Break (15min)
 - Customizable durations and cycle count
 - Character changes with timer state (Idle/Focusing/Resting/Alerting)
+- 📊 **Focus Statistics**: Auto-track daily & weekly focus time
+- 📅 **Calendar View**: Monthly calendar showing daily focus minutes, with month navigation
 - Task management (add, complete, delete, set current)
 - Background foreground service with notification alerts
-- Built-in music player
+- 🎵 Built-in music player with local audio import
+- 🔒 Imported music auto-marked as built-in (non-deletable)
 - Bilingual support (English & Chinese), switch without restart
 - Light/Dark theme following system settings
 
@@ -100,7 +102,7 @@ The app has received a complete visual transformation — from a simple timer to
 | **Material 3** | Design system foundation |
 | **Canvas API** | Custom character & particle rendering |
 | **AGSL Shaders** | GPU-accelerated gradient backgrounds |
-| **Room** | Local SQLite database for tasks |
+| **Room** | Local SQLite database (tasks + focus sessions) |
 | **DataStore** | Timer settings persistence |
 | **Coroutines + Flow** | Reactive async data streams |
 | **Navigation Compose** | In-app navigation |
@@ -120,7 +122,7 @@ The app has received a complete visual transformation — from a simple timer to
 
 ```bash
 # Clone the repository
-git clone git@github.com:Crasor/ShoujoPomodoro.git
+git clone git@github.com:lighthouse333/ShoujoPomodoro.git
 cd ShoujoPomodoro/ShoujoPomodoro
 
 # Build APK
@@ -146,10 +148,10 @@ adb shell am start -n com.shoujopomodoro/.MainActivity
 ```
 app/src/main/java/com/shoujopomodoro/
 ├── data/
-│   ├── local/              # Room database, DAO, entities
+│   ├── local/              # Room database, DAO, entities (Task + FocusSession)
 │   ├── preferences/        # DataStore preferences
 │   └── repository/         # Repository pattern
-├── di/                     # DI container & state holder
+├── di/                     # DI container & timer state holder
 ├── domain/
 │   ├── model/              # Domain models (Task, TimerSession, CharacterState, TimerPhase)
 │   └── usecase/            # Business logic
@@ -160,14 +162,16 @@ app/src/main/java/com/shoujopomodoro/
 │   │   ├── SakuraParticleBackground.kt   # Cherry blossom particle system
 │   │   ├── GradientBackgrounds.kt        # AGSL shader backgrounds
 │   │   ├── CelebrationOverlay.kt         # Completion celebration effects
-│   │   ├── EnhancedShoujoCharacter.kt    # Full-featured character rendering
+│   │   ├── EnhancedShoujoCharacter.kt    # Character rendering (procedural Canvas)
 │   │   ├── PremiumCircularTimer.kt       # Multi-layer glow timer
-│   │   └── PremiumControls.kt            # Neumorphic buttons & labels
+│   │   ├── PremiumControls.kt            # Neumorphic buttons & phase label & music bar
+│   │   └── EnhancedMusicPlayerBar.kt     # Music playback controls
 │   ├── navigation/         # NavGraph & routes
 │   ├── screen/             # Screens + ViewModels
 │   │   ├── timer/          # Main timer screen
 │   │   ├── tasklist/       # Task management
-│   │   └── settings/       # Settings & music
+│   │   ├── settings/       # Settings & music import
+│   │   └── stats/          # Focus stats & calendar 🆕
 │   └── theme/              # Color palette, typography, shapes
 └── util/                   # Constants, time formatter
 ```
@@ -191,10 +195,11 @@ app/src/main/java/com/shoujopomodoro/
 ## 📝 Usage
 
 1. **Start focusing** — Tap the ▶️ play button on the Timer screen
-2. **Manage tasks** — Tap the checklist icon to add tasks to focus on
-3. **Customize** — Tap the gear icon to adjust durations, cycles, and language
-4. **Background timer** — The timer keeps running via foreground service when you leave the app
-5. **Get notified** — Full-screen alert pops up when a phase ends, with celebration effects
+2. **View stats** — Tap the 📅 icon to see daily/weekly focus time and calendar
+3. **Manage tasks** — Tap the checklist icon to add tasks to focus on
+4. **Customize** — Tap the gear icon to adjust durations, cycles, language, and music
+5. **Background timer** — The timer keeps running via foreground service when you leave the app
+6. **Get notified** — Full-screen alert pops up when a phase ends, with celebration effects
 
 ---
 
@@ -213,7 +218,7 @@ Open source with love~ Feel free to use, modify, and share! 🌸
 | Role | GitHub |
 |------|--------|
 | Original Author | [Crasor](https://github.com/Crasor) |
-| UI Enhancement | [@lighthouse333](https://github.com/lighthouse333) |
+| UI Enhancement & Features | [@lighthouse333](https://github.com/lighthouse333) |
 
 ---
 
