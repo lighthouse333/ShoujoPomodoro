@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.shoujopomodoro.R
 import com.shoujopomodoro.ui.component.SakuraParticleBackground
 import com.shoujopomodoro.ui.component.SoftGradientBackground
 import com.shoujopomodoro.ui.theme.*
@@ -60,17 +61,21 @@ fun StatsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val isDark = isSystemInDarkTheme()
 
-    val monthNames = listOf(
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
+    val monthResIds = listOf(
+        R.string.month_0, R.string.month_1, R.string.month_2, R.string.month_3,
+        R.string.month_4, R.string.month_5, R.string.month_6, R.string.month_7,
+        R.string.month_8, R.string.month_9, R.string.month_10, R.string.month_11
     )
-    val dayHeaders = listOf("S", "M", "T", "W", "T", "F", "S")
+    val dayResIds = listOf(
+        R.string.day_0, R.string.day_1, R.string.day_2, R.string.day_3,
+        R.string.day_4, R.string.day_5, R.string.day_6
+    )
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Focus Stats", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(stringResource(R.string.focus_stats), fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = if (isDark) DarkCard.copy(alpha = 0.85f)
@@ -98,15 +103,15 @@ fun StatsScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     StatCard(
-                        label = "Today",
-                        value = "${uiState.todayMinutes} min",
+                        label = stringResource(R.string.stats_today),
+                        value = "${uiState.todayMinutes}${stringResource(R.string.stats_min_unit)}",
                         accentColor = SakuraDeep,
                         isDark = isDark,
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
-                        label = "This Week",
-                        value = "${uiState.weekMinutes} min",
+                        label = stringResource(R.string.stats_this_week),
+                        value = "${uiState.weekMinutes}${stringResource(R.string.stats_min_unit)}",
                         accentColor = WisteriaDeep,
                         isDark = isDark,
                         modifier = Modifier.weight(1f)
@@ -132,12 +137,12 @@ fun StatsScreen(
                         IconButton(onClick = { viewModel.navigateMonth(-1) }) {
                             Icon(
                                 Icons.Default.ChevronLeft,
-                                contentDescription = "Previous month",
+                                contentDescription = stringResource(R.string.stats_prev_month),
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                         Text(
-                            text = "${monthNames[uiState.selectedMonth]} ${uiState.selectedYear}",
+                            text = "${stringResource(monthResIds[uiState.selectedMonth])} ${uiState.selectedYear}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onBackground
@@ -145,7 +150,7 @@ fun StatsScreen(
                         IconButton(onClick = { viewModel.navigateMonth(1) }) {
                             Icon(
                                 Icons.Default.ChevronRight,
-                                contentDescription = "Next month",
+                                contentDescription = stringResource(R.string.stats_next_month),
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
@@ -155,9 +160,9 @@ fun StatsScreen(
 
                     // Day-of-week headers
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        dayHeaders.forEach { day ->
+                        dayResIds.forEach { resId ->
                             Text(
-                                text = day,
+                                text = stringResource(resId),
                                 modifier = Modifier.weight(1f),
                                 textAlign = TextAlign.Center,
                                 fontSize = 13.sp,
@@ -274,7 +279,7 @@ private fun CalendarDayCell(
                 )
                 if (focusMinutes > 0) {
                     Text(
-                        text = "${focusMinutes}m",
+                        text = "${focusMinutes}${stringResource(R.string.stats_min_short)}",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
                         color = SakuraDeep.copy(alpha = 0.8f),

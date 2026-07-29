@@ -52,4 +52,32 @@
     <string name="task_dialog_placeholder">例如：学数学、写报告…</string>
     <string name="task_dialog_confirm">添加</string>
     <string name="task_dialog_cancel">取消</string>
+
+    <!-- 专注统计 -->
+    <string name="focus_stats">专注统计</string>
+    <string name="stats_today">今日</string>
+    <string name="stats_this_week">本周</string>
+    <string name="stats_min_short">分</string>
+    <string name="stats_min_unit">分钟</string>
+    <string name="stats_prev_month">上个月</string>
+    <string name="stats_next_month">下个月</string>
+    <string name="month_0">1月</string>
+    <string name="month_1">2月</string>
+    <string name="month_2">3月</string>
+    <string name="month_3">4月</string>
+    <string name="month_4">5月</string>
+    <string name="month_5">6月</string>
+    <string name="month_6">7月</string>
+    <string name="month_7">8月</string>
+    <string name="month_8">9月</string>
+    <string name="month_9">10月</string>
+    <string name="month_10">11月</string>
+    <string name="month_11">12月</string>
+    <string name="day_0">日</string>
+    <string name="day_1">一</string>
+    <string name="day_2">二</string>
+    <string name="day_3">三</string>
+    <string name="day_4">四</string>
+    <string name="day_5">五</string>
+    <string name="day_6">六</string>
 </resources>

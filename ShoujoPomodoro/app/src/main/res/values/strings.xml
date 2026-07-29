@@ -52,4 +52,32 @@
     <string name="task_dialog_placeholder">e.g., Study math, Write report…</string>
     <string name="task_dialog_confirm">Add</string>
     <string name="task_dialog_cancel">Cancel</string>
+
+    <!-- Focus Stats -->
+    <string name="focus_stats">Focus Stats</string>
+    <string name="stats_today">Today</string>
+    <string name="stats_this_week">This Week</string>
+    <string name="stats_min_short">m</string>
+    <string name="stats_min_unit">min</string>
+    <string name="stats_prev_month">Previous month</string>
+    <string name="stats_next_month">Next month</string>
+    <string name="month_0">January</string>
+    <string name="month_1">February</string>
+    <string name="month_2">March</string>
+    <string name="month_3">April</string>
+    <string name="month_4">May</string>
+    <string name="month_5">June</string>
+    <string name="month_6">July</string>
+    <string name="month_7">August</string>
+    <string name="month_8">September</string>
+    <string name="month_9">October</string>
+    <string name="month_10">November</string>
+    <string name="month_11">December</string>
+    <string name="day_0">S</string>
+    <string name="day_1">M</string>
+    <string name="day_2">T</string>
+    <string name="day_3">W</string>
+    <string name="day_4">T</string>
+    <string name="day_5">F</string>
+    <string name="day_6">S</string>
 </resources>

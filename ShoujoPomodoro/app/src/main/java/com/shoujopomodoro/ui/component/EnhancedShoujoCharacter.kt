@@ -43,7 +43,7 @@ import kotlin.math.sin
 // ═══════════════════════════════════════════════
 
 enum class CharacterOutfit {
-    SAILOR, PASTEL, MAGICAL, WINTER
+    SAILOR, PASTEL, MAGICAL
 }
 
 @Composable
@@ -119,7 +119,6 @@ fun EnhancedShoujoCharacter(
                     CharacterOutfit.SAILOR -> drawSailorUniform(w, h, cx, cy)
                     CharacterOutfit.PASTEL -> drawPastelDress(w, h, cx, cy)
                     CharacterOutfit.MAGICAL -> drawMagicalOutfit(w, h, cx, cy)
-                    CharacterOutfit.WINTER -> drawWinterOutfit(w, h, cx, cy)
                 }
                 drawFace(w, h, cx, cy)
                 drawBlush(w, h, cx, cy, characterState)
@@ -253,16 +252,6 @@ private fun DrawScope.drawMagicalOutfit(w: Float, h: Float, cx: Float, cy: Float
     }, SakuraPink)
     drawLine(KonpeitoGold, Offset(cx - bw * 0.65f, bt + bh), Offset(cx + bw * 0.65f, bt + bh), 3f)
     drawBow(cx, bt + bh * 0.15f, 14f, KonpeitoGold)
-}
-
-private fun DrawScope.drawWinterOutfit(w: Float, h: Float, cx: Float, cy: Float) {
-    val bt = cy + h * 0.05f; val bh = h * 0.24f; val bw = w * 0.33f
-    drawPath(Path().apply {
-        moveTo(cx - bw * 0.75f, bt); cubicTo(cx - bw * 0.8f, bt + bh * 0.5f, cx - bw * 0.85f, bt + bh, cx - bw * 0.65f, bt + bh)
-        lineTo(cx + bw * 0.65f, bt + bh); cubicTo(cx + bw * 0.85f, bt + bh, cx + bw * 0.8f, bt + bh * 0.5f, cx + bw * 0.75f, bt); close()
-    }, IceBlue)
-    drawLine(CoralRose, Offset(cx - bw * 0.5f, bt + bh * 0.06f), Offset(cx + bw * 0.5f, bt + bh * 0.06f), 5f)
-    drawLine(CoralRose, Offset(cx + bw * 0.4f, bt + bh * 0.06f), Offset(cx + bw * 0.5f, bt + bh * 0.3f), 4f)
 }
 
 private fun DrawScope.drawBow(x: Float, y: Float, size: Float, color: Color) {
@@ -400,10 +389,6 @@ private fun DrawScope.drawAccessories(w: Float, h: Float, cx: Float, cy: Float, 
         CharacterOutfit.MAGICAL -> {
             drawCircle(KonpeitoGold.copy(alpha = 0.6f), 2.5f, Offset(cx - w * 0.35f, cy + h * 0.18f))
             drawCircle(KonpeitoGold.copy(alpha = 0.4f), 2f, Offset(cx + w * 0.35f, cy + h * 0.18f))
-        }
-        CharacterOutfit.WINTER -> {
-            drawCircle(Color.White.copy(alpha = 0.4f), 2f, Offset(cx - w * 0.3f, cy - h * 0.15f))
-            drawCircle(Color.White.copy(alpha = 0.4f), 1.5f, Offset(cx + w * 0.28f, cy - h * 0.1f))
         }
         else -> {}
     }
